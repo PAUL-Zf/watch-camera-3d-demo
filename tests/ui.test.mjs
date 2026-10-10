@@ -86,7 +86,10 @@ test('disabling a slot removes its render pass and resets restore all four slots
   const e = setup(); try {
     const input = e.doc.querySelector('#cameraEnabled'); input.checked = false; input.dispatchEvent(new e.w.Event('change', { bubbles: true })); e.frame(1000);
     assert.equal(e.w.__renders, 4); assert.equal(e.doc.querySelector('#cameraCount').textContent, '3 路');
+    click(e, '#cameraTabs [data-camera="1"]'); assert.equal(e.doc.querySelector('#cameraEnabled').checked, true);
+    click(e, '#cameraTabs [data-camera="0"]'); assert.equal(e.doc.querySelector('#cameraEnabled').checked, false);
     click(e, '#reset'); assert.equal(e.w.watchVision.getState().cameras.filter(c => c.enabled).length, 4);
+    assert.equal(e.doc.querySelector('#cameraEnabled').checked, true);
     assert.deepEqual(e.errors, []);
   } finally { e.close(); }
 });
