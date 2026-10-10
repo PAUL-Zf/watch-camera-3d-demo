@@ -66,3 +66,16 @@ test('inward look-at-watch preset retains unoccluded facial landmarks on either 
     assert.ok(visible.length >= 4, `${side}: face is blocked by the inward arm`);
   }
 });
+
+test('the refined torso blocks rays and all character details stop occluding when hidden', () => {
+  const world = createWorld(); world.scene.updateMatrixWorld(true);
+  const ray = new THREE.Raycaster(new THREE.Vector3(0, 1.20, 1), new THREE.Vector3(0, 0, -1), 0, 2);
+  const visibleMeshes = () => {
+    const result = []; world.scene.traverse(o => { if (o.isMesh && o.visible && o.layers.mask === 1) result.push(o); }); return result;
+  };
+  const before = ray.intersectObjects(visibleMeshes(), false);
+  assert.ok(before.some(hit => hit.object.userData.kind === 'human'));
+  world.humanMeshes.forEach(m => { m.visible = false; });
+  const after = ray.intersectObjects(visibleMeshes(), false);
+  assert.ok(after.every(hit => hit.object.userData.kind !== 'human'));
+});

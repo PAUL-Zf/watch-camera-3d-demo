@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { createRig, updatePose } from './kinematics.js';
+import { createAvatar } from './avatar.js';
 
 const material = (color, roughness = .8) => new THREE.MeshStandardMaterial({ color, roughness });
 function addMesh(parent, geometry, mat, position = [0, 0, 0], scale) {
@@ -30,36 +31,7 @@ export function createWorld() {
   const ground = addMesh(scene, new THREE.PlaneGeometry(12, 12), material('#52636a'), [0, -.003, 0]); ground.rotation.x = -Math.PI / 2;
   const grid = new THREE.GridHelper(10, 40, '#849ca4', '#667c86'); grid.position.y = .001; scene.add(grid);
   const rig = createRig(); scene.add(rig.root);
-  const skin = material('#dfb99e'); const shirt = material('#397c85'); const trousers = material('#283d50'); const shoes = material('#cad6d9'); const hair = material('#343236');
-  const humanMeshes = [];
-  function human(parent, geo, mat, position, scale) { const m = addMesh(parent, geo, mat, position, scale); humanMeshes.push(m); m.userData.kind = 'human'; return m; }
-  const sphere = new THREE.SphereGeometry(1, 24, 18);
-  human(rig.root, sphere, shirt, [0, 1.15, 0], [.235, .265, .12]);
-  human(rig.root, sphere, trousers, [0, .88, 0], [.17, .16, .11]);
-  human(rig.root, new THREE.CylinderGeometry(.055, .057, .10, 20), skin, [0, 1.44, 0]);
-  human(rig.root, sphere, skin, [0, 1.62, .005], [.108, .136, .098]);
-  human(rig.root, sphere, hair, [0, 1.70, -.027], [.106, .064, .086]);
-  human(rig.root, sphere, skin, [0, 1.625, .107], [.013, .023, .018]);
-  [-1, 1].forEach(sign => {
-    human(rig.root, sphere, skin, [sign * .108, 1.62, .003], [.014, .026, .017]);
-    human(rig.root, sphere, material('#fff8ed'), [sign * .039, 1.658, .088], [.019, .010, .010]);
-    human(rig.root, sphere, material('#30393a'), [sign * .039, 1.658, .097], [.007, .007, .002]);
-    human(rig.root, new THREE.CapsuleGeometry(.067, .63, 5, 16), trousers, [sign * .09, .46, 0]);
-    human(rig.root, sphere, shoes, [sign * .09, .06, .044], [.071, .045, .13]);
-  });
-  human(rig.root, sphere, material('#ad7870'), [0, 1.586, .099], [.028, .004, .003]);
-  human(rig.shoulder, new THREE.CapsuleGeometry(.048, .205, 4, 16), skin, [0, -.15, 0]);
-  human(rig.shoulder, new THREE.CapsuleGeometry(.061, .10, 4, 16), shirt, [0, -.055, 0]);
-  human(rig.elbow, sphere, skin, [0, 0, 0], [.044, .044, .044]);
-  human(rig.forearm, new THREE.CapsuleGeometry(.038, .19, 4, 16), skin, [0, -.135, 0]);
-  human(rig.wrist, sphere, skin, [0, -.044, 0], [.038, .067, .020]);
-  [-1.5, -.5, .5, 1.5].forEach((n, i) => human(rig.wrist, new THREE.CapsuleGeometry(.007, .045 + (i === 1 || i === 2 ? .01 : 0), 3, 8), skin, [n * .015, -.117, .001]));
-  human(rig.wrist, new THREE.CapsuleGeometry(.011, .035, 3, 10), skin, [-.042, -.065, .009]);
-  const passiveArm = new THREE.Group(); rig.root.add(passiveArm);
-  human(passiveArm, new THREE.CapsuleGeometry(.048, .205, 4, 16), skin, [0, -.15, 0]);
-  human(passiveArm, new THREE.CapsuleGeometry(.061, .10, 4, 16), shirt, [0, -.055, 0]);
-  human(passiveArm, new THREE.CapsuleGeometry(.038, .19, 4, 16), skin, [0, -.435, 0]);
-  human(passiveArm, sphere, skin, [0, -.60, 0], [.040, .08, .021]);
+  const { humanMeshes, passiveArm, facePoints } = createAvatar(rig);
 
   const strapMat = material('#c4b184'); const carrier = material('#b5cbd1', .45); const caseMat = material('#293c47', .32);
   const strap = addMesh(rig.mount, new THREE.TorusGeometry(.035, .006, 8, 32), strapMat, [0, -.031, 0]); strap.scale.set(1, .78, 1); // torus hole follows the forearm / 12–6 axis
@@ -88,7 +60,6 @@ export function createWorld() {
   const ball = addMesh(scene, new THREE.SphereGeometry(.18, 24, 18), material('#eda44c'), [.6, 1.15, 2.0]);
   [-.58, .6].forEach((x, i) => addMesh(scene, new THREE.CylinderGeometry(.022, .022, .85, 12), material('#829298'), [x, .425, i ? 2 : 1.75]));
   const farWall = addMesh(scene, new THREE.PlaneGeometry(7, 3), material('#7a919e'), [0, 1.5, 4.5]); farWall.rotation.y = Math.PI;
-  const facePoints = [new THREE.Vector3(0, 1.625, .126), new THREE.Vector3(-.039, 1.658, .100), new THREE.Vector3(.039, 1.658, .100), new THREE.Vector3(0, 1.586, .103), new THREE.Vector3(0, 1.711, .079)];
   const targets = [{ name: '前方文字牌', point: new THREE.Vector3(0, 1.35, 2.499) }, { name: '青色方块', point: new THREE.Vector3(-.58, 1.08, 1.52) }, { name: '橙色球', point: new THREE.Vector3(.6, 1.15, 1.819) }];
   updatePose(rig, { raise: 20, elbow: 110, twist: -25, wrist: 0, flip: 0, spin: 0 });
   return { scene, rig, humanMeshes, passiveArm, facePoints, targets };
