@@ -30,56 +30,61 @@ h2 { font-size: 12px; line-height: 16px; letter-spacing: .1px; }
 .dark-button { background: #243d47; color: white; border-color: #243d47; }
 .dark-button:hover { background: #36545f; }
 .workspace { display: grid; grid-template-columns: clamp(320px, 20vw, 360px) minmax(0, 1.3fr) minmax(0, 1fr); gap: 12px; padding: 10px 12px; width: 100%; min-width: 0; min-height: 0; }
-/* One full-width row per parameter: readable label, usable track, clear value. */
-.control-panel { --row-min: 24px; padding: 10px; background: #fff; border: 1px solid var(--border); border-radius: 10px; display: flex; flex-direction: column; justify-content: flex-start; gap: 6px; min-width: 0; min-height: 0; align-self: stretch; font-family: "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif; }
-/* Allocate spare height by parameter count, inside the controls themselves. */
-.control-section { min-width: 0; flex: 1 0 auto; display: flex; flex-direction: column; }
-.pose-section { flex-grow: 5; }
-.watch-section { flex-grow: 2; }
-.camera-section { flex-grow: 4; }
-.control-section + .control-section { border-top: 1px solid #e1e8ed; padding-top: 6px; }
-.section-heading { position: relative; display: flex; flex: none; align-items: center; gap: 7px; margin-bottom: 4px; height: 24px; }
+/* Compact base: structured cards, bounded row heights, no distributed spacer. */
+.control-panel { padding: 6px; background: #e8eef2; border: 1px solid #d8e2e9; border-radius: 12px; display: flex; flex-direction: column; gap: 4px; min-width: 0; min-height: 0; align-self: stretch; font-family: "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif; }
+.control-guide { display: none; flex: none; align-items: center; justify-content: space-between; color: #416878; font-size: 12px; height: 24px; padding: 0 4px; }
+.control-guide .guide-caption { color: #788b99; font-size: 11px; }
+.control-guide i { font-style: normal; color: #90aab5; }
+.control-section { padding: 2px; min-width: 0; flex: none; background: #fff; border: 1px solid #dce5eb; border-radius: 9px; }
+.camera-section { border-top: 3px solid var(--selected-color, #46d7cf); }
+.section-heading { position: relative; display: flex; align-items: center; gap: 8px; margin-bottom: 4px; height: 24px; }
 .section-heading h2 { font-size: 14px; line-height: 20px; font-weight: 650; white-space: nowrap; color: #263e50; }
-.step { font-size: 11px; font-weight: 650; background: #eaf5f3; color: #147d80; border-radius: 5px; padding: 4px; line-height: 14px; }
+.section-title small { display: none; font-size: 11px; color: #82929f; line-height: 15px; margin-top: 2px; }
+.step { font-size: 11px; font-weight: 650; background: #eaf5f3; color: #147d80; border-radius: 6px; padding: 4px; line-height: 14px; }
+.watch-section .step { color: #56768a; background: #edf2f7; }
+.camera-section .step { color: #5c698a; background: #eff0f8; }
 .section-help { margin-left: auto; }
 .section-help summary { display: flex; align-items: center; justify-content: center; width: 22px; height: 22px; list-style: none; cursor: pointer; border-radius: 50%; border: 1px solid #d3dde3; color: #617788; font-size: 12px; }
 .section-help summary::-webkit-details-marker { display: none; }
 .section-help summary:focus-visible { outline: 2px solid #42bcb6; }
 .section-help[open] summary { color: #147d80; background: #eaf5f3; }
-.section-help p { position: absolute; top: 29px; left: 0; right: 0; display: block; z-index: 5; padding: 12px; background: #fff; border: 1px solid #cddce2; box-shadow: 0 6px 20px #17394426; border-radius: 8px; font-size: 13px; font-weight: 400; line-height: 1.7; color: #53687a; }
-.wrist-row { display: flex; flex: none; align-items: center; gap: 10px; height: 26px; margin-bottom: 4px; }
+.section-help p { position: absolute; top: calc(100% + 6px); left: 0; right: 0; z-index: 5; padding: 12px; background: #fff; border: 1px solid #cddce2; box-shadow: 0 6px 20px #17394426; border-radius: 8px; font-size: 13px; line-height: 1.7; color: #53687a; }
+.wrist-row { display: flex; align-items: center; gap: 10px; height: 26px; margin-bottom: 4px; }
 .field-label { font-size: 13px; color: #506578; white-space: nowrap; }
 .segmented { display: flex; flex: 1; background: #eef2f4; padding: 2px; gap: 3px; border-radius: 6px; height: 26px; }
 .segmented button { flex: 1; background: none; border: 0; padding: 0 4px; font-size: 13px; }
 .segmented button.active { background: white; color: #147d80; box-shadow: 0 1px 3px #15273512; font-weight: 650; }
-.pose-list { display: grid; flex: none; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; margin: 0 0 4px; }
+.pose-list { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; margin: 0 0 4px; }
 .pose-list button { padding: 2px; height: 28px; text-align: center; font-size: 12px; white-space: nowrap; }
-.pose-list button.active { border-color: #58a6a2; background: #eef9f7; color: #13746e; }
-.sliders { display: flex; flex: 1 0 auto; flex-direction: column; gap: 2px; }
-.slider-field { display: grid; flex: 1 0 var(--row-min); grid-template-columns: 110px minmax(0, 1fr) 38px; gap: 8px; align-items: center; min-height: var(--row-min); min-width: 0; }
+.pose-list button.active { border-color: #58a6a2; background: #eef9f7; color: #13746e; box-shadow: inset 0 -2px #58a6a233; }
+.sliders { display: flex; flex-direction: column; gap: 1px; }
+.slider-field { display: grid; grid-template-columns: 110px minmax(0, 1fr) 38px; gap: 8px; align-items: center; height: 22px; min-width: 0; }
 .slider-heading { display: contents; }
 .slider-heading label { grid-column: 1; grid-row: 1; font-size: 13px; line-height: 20px; color: #4c6276; white-space: nowrap; }
-.slider-heading output { grid-column: 3; grid-row: 1; text-align: right; font-size: 13px; line-height: 20px; font-weight: 600; color: #233d4c; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.slider-field input { grid-column: 2; grid-row: 1; display: block; width: 100%; min-width: 0; margin: 0; accent-color: #238b87; height: 100%; max-height: 36px; min-height: var(--row-min); cursor: pointer; }
+.slider-heading output { grid-column: 3; grid-row: 1; text-align: center; font-size: 13px; line-height: 20px; font-weight: 600; color: #315663; font-variant-numeric: tabular-nums; white-space: nowrap; border-radius: 5px; background: #edf5f5; }
+.slider-field input { grid-column: 2; grid-row: 1; display: block; width: 100%; min-width: 0; margin: 0; accent-color: #238b87; height: 22px; cursor: pointer; }
 .slider-bounds { display: none; }
-.angle-shortcuts { display: flex; flex: none; gap: 4px; margin-top: 4px; min-width: 0; }
+.angle-shortcuts { display: flex; gap: 4px; margin-top: 4px; min-width: 0; }
 .angle-shortcuts button { padding: 2px 3px; height: 24px; font-size: 12px; flex: 1; white-space: nowrap; }
 .angle-shortcuts button.active { background: #e6f5f1; border-color: #84bbb6; color: #147d80; }
-.camera-heading { gap: 5px; }
-.camera-heading h2 { font-size: 13px; }
-.camera-tabs { display: flex; gap: 3px; height: 24px; margin-left: auto; }
-.camera-tabs button { width: 24px; border-top: 3px solid var(--cam-color); padding: 0; font-size: 12px; }
-.camera-tabs button.active { background: #233d48; color: white; border-color: #233d48; border-top-color: var(--cam-color); }
-#cameraEditor { display: flex; flex: 1 0 auto; flex-direction: column; }
-.camera-mount-fields { display: flex; flex: none; flex-direction: column; gap: 4px; margin-bottom: 4px; }
+.camera-heading .enable-row { margin-left: auto; }
+.camera-tabs { display: flex; gap: 5px; height: 28px; margin-bottom: 4px; }
+.camera-tabs button { flex: 1; min-width: 0; border: 1px solid #dce5eb; border-bottom: 3px solid var(--cam-color); padding: 0 3px; font-size: 13px; background: #f6f9fb; }
+.camera-tabs button.active { background: #fff; color: #183d49; border-color: var(--cam-color); box-shadow: 0 0 0 1px var(--cam-color); }
+.slot-letter { display: flex; justify-content: center; align-items: center; gap: 6px; font-weight: 700; line-height: 17px; }
+.slot-letter i { background: var(--cam-color); width: 6px; height: 6px; border-radius: 50%; }
+.shortcut-caption { display: none; }
+.slot-surface { display: none; font-size: 10px; font-weight: 400; line-height: 12px; color: #758b98; }
+#cameraEditor { display: flex; flex-direction: column; }
+.camera-mount-fields { display: flex; flex-direction: column; gap: 4px; margin-bottom: 4px; }
 .select-row { display: flex; align-items: center; gap: 10px; font-size: 13px; line-height: 20px; color: #4c6276; min-width: 0; height: 26px; }
 .select-row select { flex: 1; width: 0; min-width: 0; height: 26px; border: 1px solid var(--border); padding: 2px 6px; border-radius: 5px; background: #fafcfd; color: #33475b; font-size: 13px; }
-.enable-row { display: flex; align-items: center; gap: 3px; font-size: 12px; color: #506578; white-space: nowrap; margin: 0; }
+.enable-row { display: flex; align-items: center; gap: 4px; font-size: 12px; color: #506578; white-space: nowrap; margin: 0; }
 .enable-row input { accent-color: #238b87; margin: 0; width: 13px; height: 13px; }
-.camera-shortcuts { display: flex; flex: none; gap: 8px; }
+.camera-shortcuts { display: flex; gap: 8px; }
 .camera-shortcuts > .angle-shortcuts { flex: 1; }
 .camera-shortcuts button { font-size: 11px; }
-.camera-default { flex: none; width: 100%; font-size: 12px; height: 24px; padding: 2px; margin-top: 4px; }
+.camera-default { width: 100%; font-size: 12px; height: 24px; padding: 2px; margin-top: 4px; background: #f7f9fb; }
 .studio-panel, .camera-panel { min-width: 0; min-height: 0; display: flex; flex-direction: column; }
 .panel-top { flex: none; height: 44px; display: flex; align-items: center; justify-content: space-between; padding: 0 1px 6px; gap: 6px; min-width: 0; }
 .eyebrow { font-size: 8px; letter-spacing: 1.4px; color: #8c98a3; display: block; margin-bottom: 4px; }
@@ -223,47 +228,68 @@ footer span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   footer { font-size: 8px; padding: 0 6px; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
-/* Lower windows reduce spacing, retaining the same readable font sizes. */
-@media (max-height: 700px) {
-  .control-panel { --row-min: 23px; padding: 8px; gap: 4px; }
-  .section-heading { height: 22px; margin-bottom: 2px; }
-  .control-section + .control-section { padding-top: 4px; }
-  .wrist-row { margin-bottom: 2px; }
-  .pose-list { margin-bottom: 2px; }
-  .pose-list button { height: 26px; }
-  .sliders { gap: 1px; }
-  .camera-mount-fields { gap: 3px; margin-bottom: 2px; }
-  .angle-shortcuts { margin-top: 2px; }
-  .camera-default { margin-top: 2px; }
-}
-@media (max-height: 620px) {
-  .control-panel { --row-min: 22px; padding: 7px; gap: 3px; }
-  .control-section + .control-section { padding-top: 3px; }
-  .section-heading { height: 22px; margin-bottom: 1px; }
-  .wrist-row, .segmented { height: 24px; }
-  .pose-list button { height: 24px; }
-  .sliders { gap: 0; }
-  .camera-mount-fields { gap: 2px; margin-bottom: 2px; }
-  .select-row, .select-row select { height: 24px; }
-  .angle-shortcuts button, .camera-default { height: 22px; }
-}
-/* Full-size desktop windows use their extra height for comfortable controls. */
+/* Use extra height for richer hierarchy rather than stretching slider rows. */
 @media (min-height: 900px) {
-  .control-panel { --row-min: 28px; padding: 14px; gap: 10px; }
-  .control-section + .control-section { padding-top: 10px; }
-  .section-heading { height: 28px; margin-bottom: 6px; }
+  .control-panel { padding: 8px; gap: 8px; }
+  .control-guide { display: flex; }
+  .control-section { padding: 5px; }
+  .slider-field, .slider-field input { height: 26px; }
+  .pose-list button { height: 30px; }
+  .camera-tabs { height: 34px; margin-bottom: 6px; }
+  .slot-surface { display: block; }
+  .select-row, .select-row select, .wrist-row, .segmented { height: 28px; }
+  .angle-shortcuts button, .camera-default { height: 26px; }
+}
+@media (min-height: 1080px) {
+  .control-panel { padding: 12px; gap: 12px; }
+  .control-section { padding: 5px; box-shadow: 0 2px 6px #1b3f4a05; }
+  .section-heading { height: 36px; margin-bottom: 6px; }
+  .section-title small { display: block; }
   .section-heading h2 { font-size: 15px; }
-  .camera-heading h2 { font-size: 13px; }
   .wrist-row, .segmented { height: 32px; }
   .wrist-row, .pose-list, .camera-mount-fields { margin-bottom: 6px; }
-  .pose-list button { height: 34px; font-size: 13px; }
-  .sliders { gap: 4px; }
-  .slider-field { grid-template-columns: 120px minmax(0, 1fr) 40px; }
+  .pose-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pose-list button { height: 32px; font-size: 13px; }
+  .sliders { gap: 2px; }
+  .slider-field { height: 32px; grid-template-columns: 120px minmax(0, 1fr) 40px; }
+  .slider-field input { height: 32px; }
   .slider-heading label, .slider-heading output, .field-label, .select-row, .select-row select { font-size: 14px; }
   .select-row, .select-row select { height: 32px; }
   .camera-mount-fields { gap: 6px; }
+  .camera-tabs { height: 36px; }
   .angle-shortcuts { margin-top: 6px; }
   .angle-shortcuts button, .camera-default { height: 30px; }
   .camera-default { margin-top: 6px; }
-  .camera-tabs { height: 28px; }
+  .camera-shortcuts .angle-shortcuts { position: relative; padding-top: 16px; }
+  .shortcut-caption { display: block; position: absolute; top: 0; left: 1px; font-size: 11px; line-height: 14px; color: #82929f; }
+}
+@media (min-height: 1360px) {
+  .control-section { padding: 10px; }
+  .section-heading { height: 38px; margin-bottom: 8px; }
+  .section-title small { display: block; }
+  .step { padding: 7px; }
+  .pose-list button { height: 36px; }
+  .sliders { gap: 5px; }
+  .slider-field { display: flex; flex-direction: column; align-items: stretch; height: 44px; gap: 4px; }
+  .slider-heading { display: flex; align-items: center; justify-content: space-between; }
+  .slider-heading output { min-width: 46px; padding: 1px 5px; }
+  .slider-field input { height: 18px; }
+  .camera-tabs { height: 42px; }
+  .slot-surface { font-size: 11px; }
+}
+@media (max-height: 620px) {
+  .control-panel { padding: 5px; gap: 2px; }
+  .control-section { padding: 1px; }
+  .section-heading { height: 20px; margin-bottom: 1px; }
+  .wrist-row, .segmented { height: 24px; }
+  .wrist-row, .pose-list { margin-bottom: 2px; }
+  .pose-list button { height: 22px; }
+  .slider-field, .slider-field input { height: 20px; }
+  .sliders { gap: 0; }
+  .camera-tabs { height: 26px; margin-bottom: 2px; }
+  .camera-mount-fields { gap: 2px; margin-bottom: 2px; }
+  .select-row, .select-row select { height: 24px; }
+  .angle-shortcuts { margin-top: 2px; }
+  .angle-shortcuts button, .camera-default { height: 22px; }
+  .camera-default { margin-top: 2px; }
 }

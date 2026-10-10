@@ -79,6 +79,8 @@ test('preset, lift, left/right wrist and camera-edit events change the live scen
     click(e, '#cameraTabs [data-camera="2"]'); change(e, '#cameraAttach', 'base'); change(e, '#cameraSurface', 'nine'); slide(e, '#camera-fov', 120);
     const c = e.w.watchVision.getState().cameras[2]; assert.equal(c.attach, 'base'); assert.equal(c.surface, 'nine'); assert.equal(c.fov, 120);
     assert.match(e.doc.querySelector('#title-2').textContent, /底座/); assert.match(e.doc.querySelector('#fov-2').textContent, /120/);
+    assert.equal(e.doc.querySelector('#cameraTabs [data-camera="2"] .slot-surface').textContent, '9 点侧');
+    assert.equal(e.doc.querySelectorAll('#cameraTabs [aria-pressed="true"]').length, 1);
     assert.deepEqual(e.errors, []);
   } finally { e.close(); }
 });

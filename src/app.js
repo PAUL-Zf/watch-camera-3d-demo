@@ -7,6 +7,7 @@ import { fitSensorViewport } from './layout.js';
 
 const $ = selector => document.querySelector(selector);
 const COLORS = ['#46d7cf', '#ffbe6f', '#92a7ff', '#f292bf'];
+const SLOT_NAMES = { front: '前摄', rear: '后摄', twelve: '12 点侧', three: '3 点侧', six: '6 点侧', nine: '9 点侧' };
 const STORAGE_KEY = 'watch-camera-vision-v1';
 let state = defaultState(); let hasStorage = true;
 try { const saved = localStorage.getItem(STORAGE_KEY); if (saved) state = validateState(JSON.parse(saved)); } catch { hasStorage = false; }
@@ -31,7 +32,7 @@ function renderUI() {
   $('#poseList').innerHTML = Object.entries(PRESETS).map(([key, p]) => `<button data-preset="${key}" title="${p.label}" aria-label="${p.label}" class="${state.preset === key ? 'active' : ''}">${presetNames[key]}</button>`).join('');
   $('#poseSliders').innerHTML = [['raise', '肩部抬臂'], ['inward', '水平内收 · 肩部'], ['elbow', '肘部弯曲'], ['twist', '前臂旋转'], ['wrist', '腕部弯曲']].map(([k, label]) => slider(k, label, ...POSE_LIMITS[k], state.pose[k], 'pose')).join('');
   $('#watchSliders').innerHTML = [['flip', '表体立起角度'], ['spin', '底座连接件旋转']].map(([k, label]) => slider(k, label, ...POSE_LIMITS[k], state.pose[k], 'pose')).join('');
-  $('#cameraTabs').innerHTML = state.cameras.map((c, i) => `<button data-camera="${i}" style="--cam-color:${COLORS[i]}" class="${i === state.selected ? 'active' : ''}">${c.name}</button>`).join('');
+  $('#cameraTabs').innerHTML = state.cameras.map((c, i) => `<button data-camera="${i}" aria-label="配置摄像头 ${c.name}" style="--cam-color:${COLORS[i]}" class="${i === state.selected ? 'active' : ''}"><span class="slot-letter"><i aria-hidden="true"></i>${c.name}</span><small class="slot-surface">${SLOT_NAMES[c.surface]}</small></button>`).join('');
   $('#feeds').innerHTML = state.cameras.map((c, i) => `<article class="feed ${i === state.selected ? 'selected' : ''} ${c.enabled ? '' : 'disabled'}" data-camera="${i}" style="--cam-color:${COLORS[i]}" tabindex="0" role="button" aria-label="配置摄像头 ${c.name}"><div class="feed-header"><span class="cam-letter">${c.name}</span><span class="feed-title" id="title-${i}">${SURFACES[c.surface].label}</span><span class="feed-selection">↗</span></div><div class="feed-frame"><div class="camera-view" id="viewport-${i}"><span class="feed-crosshair"></span><span class="feed-fov" id="fov-${i}">HFOV ${c.fov}°</span><div class="feed-disabled">镜头已关闭</div></div></div><div class="feed-bottom"><span id="details-${i}"></span><span class="visibility-status" id="status-${i}">正在分析视野…</span></div></article>`).join('');
   renderEditor(); syncUI(); measure();
 }
@@ -39,7 +40,8 @@ function renderEditor() {
   const c = state.cameras[state.selected];
   $('#cameraEnabled').checked = c.enabled;
   $('#cameraEnabled').setAttribute('aria-label', `启用摄像头 ${c.name}`);
-  $('#cameraEditor').innerHTML = `<div class="camera-mount-fields"><label class="select-row">安装部件<select id="cameraAttach"><option value="body" ${c.attach === 'body' ? 'selected' : ''}>可翻转表体</option><option value="base" ${c.attach === 'base' ? 'selected' : ''}>腕上固定底座</option></select></label><label class="select-row">安装位置<select id="cameraSurface">${Object.entries(SURFACES).map(([key, surface]) => `<option value="${key}" ${key === c.surface ? 'selected' : ''}>${c.attach === 'base' && key === 'rear' ? '底座背面 · 朝皮肤' : surface.label}</option>`).join('')}</select></label></div><div class="sliders camera-sliders">${slider('yaw', '水平偏转', -90, 90, c.yaw, 'camera')}${slider('pitch', '上下倾斜', -90, 90, c.pitch, 'camera')}${slider('roll', '画面旋转 · 安装', -180, 180, c.roll, 'camera')}${slider('fov', '水平视场角 HFOV', 40, 130, c.fov, 'camera')}</div><div class="camera-shortcuts"><div class="angle-shortcuts" role="group" aria-label="画面旋转快捷角度"><button data-roll="0">0°</button><button data-roll="90">90°</button><button data-roll="180">180°</button></div><div class="angle-shortcuts" role="group" aria-label="水平视场角快捷角度"><button data-fov="60">窄 60°</button><button data-fov="90">中 90°</button><button data-fov="120">广 120°</button></div></div><button id="cameraDefault" class="camera-default">恢复此槽位的初始布局</button>`;
+  $('.camera-section').style.setProperty('--selected-color', COLORS[state.selected]);
+  $('#cameraEditor').innerHTML = `<div class="camera-mount-fields"><label class="select-row">安装部件<select id="cameraAttach"><option value="body" ${c.attach === 'body' ? 'selected' : ''}>可翻转表体</option><option value="base" ${c.attach === 'base' ? 'selected' : ''}>腕上固定底座</option></select></label><label class="select-row">安装位置<select id="cameraSurface">${Object.entries(SURFACES).map(([key, surface]) => `<option value="${key}" ${key === c.surface ? 'selected' : ''}>${c.attach === 'base' && key === 'rear' ? '底座背面 · 朝皮肤' : surface.label}</option>`).join('')}</select></label></div><div class="sliders camera-sliders">${slider('yaw', '水平偏转', -90, 90, c.yaw, 'camera')}${slider('pitch', '上下倾斜', -90, 90, c.pitch, 'camera')}${slider('roll', '画面旋转 · 安装', -180, 180, c.roll, 'camera')}${slider('fov', '水平视场角 HFOV', 40, 130, c.fov, 'camera')}</div><div class="camera-shortcuts"><div class="angle-shortcuts" role="group" aria-label="画面旋转快捷角度"><span class="shortcut-caption">画面旋转</span><button data-roll="0">0°</button><button data-roll="90">90°</button><button data-roll="180">180°</button></div><div class="angle-shortcuts" role="group" aria-label="水平视场角快捷角度"><span class="shortcut-caption">水平视场角</span><button data-fov="60">窄 60°</button><button data-fov="90">中 90°</button><button data-fov="120">广 120°</button></div></div><button id="cameraDefault" class="camera-default">恢复此槽位的初始布局</button>`;
 }
 function syncUI() {
   document.querySelectorAll('[data-side]').forEach(b => b.classList.toggle('active', b.dataset.side === state.side));
@@ -54,6 +56,9 @@ function syncUI() {
     const label = c.attach === 'base' ? `底座 · ${SURFACES[c.surface].label.replace('表体背面 · 后摄', '背面').replace('屏幕面 · 前摄', '正面')}` : SURFACES[c.surface].label;
     $(`#title-${i}`).textContent = label;
     $(`#title-${i}`).title = label;
+    const slot = $(`#cameraTabs [data-camera="${i}"]`); slot.title = `${c.name} · ${label}`;
+    slot.querySelector('.slot-surface').textContent = SLOT_NAMES[c.surface];
+    slot.setAttribute('aria-pressed', String(i === state.selected));
     $(`#fov-${i}`).textContent = `HFOV ${c.fov}°`;
     $(`#details-${i}`).textContent = `${c.attach === 'body' ? '活动表体' : '固定底座'} · ${c.yaw}° / ${c.pitch}° / ${c.roll}°`;
     $(`#details-${i}`).title = `偏转 ${c.yaw}° / 倾斜 ${c.pitch}° / 画面旋转 ${c.roll}°`;
