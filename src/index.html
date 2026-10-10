@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="离线手表摄像头 3D 视野概念模拟器">
+  <title>WATCH / VISION — 手表摄像头视野实验室</title>
+  <style>/* INLINE_STYLE */</style>
+</head>
+<body>
+  <div id="renderLayer" aria-hidden="true"></div>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand"><span class="brand-mark">W<span>•</span></span><div><strong>WATCH <span>/</span> VISION</strong><small>手表摄像头 · 视野实验室</small></div></div>
+      <div class="top-meta"><span class="offline"><i></i> 本地离线</span><span class="version">CONCEPT DEMO · V0.1.1</span></div>
+      <div class="top-actions"><button id="exportConfig">导出配置</button><button id="importConfig">导入配置</button><button id="reset" class="dark-button">重置实验</button><input id="configFile" type="file" accept="application/json,.json" hidden></div>
+    </header>
+    <main class="workspace">
+      <aside class="control-panel">
+        <div class="section-heading"><span class="step">01</span><div><h2>佩戴与姿势</h2><p>先选择姿势，再微调关节</p></div></div>
+        <label class="field-label" for="side">佩戴手腕</label><div class="segmented" id="sideGroup"><button data-side="left" class="active">左腕</button><button data-side="right">右腕</button></div>
+        <div class="pose-list" id="poseList"></div>
+        <div id="poseSliders" class="sliders"></div>
+        <div class="divider"></div>
+        <div class="section-heading"><span class="step">02</span><div><h2>活动表体</h2><p>底座留在手腕，表体绕轴立起</p></div></div>
+        <div id="watchSliders" class="sliders"></div>
+        <div class="angle-shortcuts"><button data-flip="0">平放 0°</button><button data-flip="45">45°</button><button data-flip="90">立起 90°</button></div>
+        <p class="control-note">翻转轴位于 6 点钟侧。12 点钟侧向上抬起；旋转底座连接件可改变翻转方向。角度用于概念观察，不代表实机机械限位。</p>
+        <div class="divider"></div>
+        <div class="section-heading"><span class="step">03</span><div><h2>摄像头配置</h2><p>选择右侧画面，配置对应镜头</p></div></div>
+        <div id="cameraTabs" class="camera-tabs"></div>
+        <div id="cameraEditor"></div>
+      </aside>
+      <section class="studio-panel">
+        <div class="panel-top"><div><span class="eyebrow">SPATIAL VIEW</span><h1>让视野随姿势变化</h1></div><span class="scene-badge">示意人体 · 非品牌复刻</span></div>
+        <div id="mainViewport" class="main-viewport" tabindex="0" aria-label="3D 场景，拖动旋转，滚轮缩放，方向键旋转">
+          <div class="view-top"><span class="live-label"><i></i> 3D 实时场景</span><div class="view-buttons"><button data-view="full">全身</button><button data-view="wrist">腕部</button><button data-view="face">脸部</button></div></div>
+          <div id="loading">正在初始化 3D 场景…</div>
+          <div class="axis-note">Y ↑ 上方　 Z → 人体前方<br><span>钟点方向以表盘标记为准</span></div>
+          <div class="view-help">拖动旋转 · 滚轮缩放 · 右键平移</div>
+        </div>
+        <div class="studio-toolbar"><label><input id="showFrustums" type="checkbox" checked> 所选镜头视锥</label><label><input id="showAllFrustums" type="checkbox"> 全部视锥</label><label><input id="showBody" type="checkbox" checked> 人体显示／遮挡</label><button id="animate">▶ 摆臂演示</button><span id="fps">—</span></div>
+        <div class="readout"><div><span class="eyebrow">CURRENT EXPERIMENT</span><strong id="poseReadout">抬腕看表</strong></div><div class="readout-stat"><small>表体立起</small><b id="flipReadout">0°</b></div><div class="readout-stat"><small>同步画面</small><b id="cameraCount">4 路</b></div><div class="readout-stat"><small>视野参照</small><b>人脸 / 标识 / 物体</b></div></div>
+        <div class="explanation"><b>观察提示</b><span id="hint">选择“抬腕立起”，对比前摄看脸、后摄看环境；改变转腕角度，观察方向和遮挡。</span></div>
+      </section>
+      <section class="camera-panel">
+        <div class="panel-top"><div><span class="eyebrow">CAMERA FEEDS</span><h2>同一姿势，四个视角</h2></div><span class="aspect-label">4 : 3</span></div>
+        <div id="feeds" class="feeds"></div>
+        <div class="feed-key"><span><i style="background:#46d7cf"></i> A 前摄</span><span><i style="background:#ffbe6f"></i> B 后摄</span><span><i style="background:#92a7ff"></i> C 12 点钟侧</span><span><i style="background:#f292bf"></i> D 3 点钟侧</span></div>
+        <div class="camera-info"><b>这里显示的是摄像头实际视角</b><p>人体、底座和表壳会遮挡视线。视锥及彩色镜头标记只出现在外部观察视图，不进入摄像头画面。</p><p>人脸提示来自少量采样点的视野与遮挡判断；用于辅助观察，不代表识别准确率或完整脸部覆盖率。</p></div>
+        <button id="saveImages" class="capture-button">↓ 保存四路对比图 PNG</button>
+        <div class="target-legend"><span class="eyebrow">SCENE REFERENCES</span><div>前方：VISION 文字牌、青色方块、橙色球</div><div>侧面：紫色标识牌　下方：地面方向与刻度</div></div>
+      </section>
+    </main>
+    <footer><span>概念视野模拟 · 理想透视成像 · 不模拟清晰度、低光与镜头畸变</span><span id="saveStatus" role="status" aria-live="polite">修改自动保存在本机浏览器</span></footer>
+  </div>
+  <div id="toast" role="status" aria-live="polite"></div>
+  <script>/* INLINE_SCRIPT */</script>
+</body>
+</html>

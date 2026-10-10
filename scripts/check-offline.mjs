@@ -1,0 +1,12 @@
+import { readFile } from 'node:fs/promises';
+import assert from 'node:assert/strict';
+import vm from 'node:vm';
+const html = await readFile(new URL('../dist/watch-camera-demo.html', import.meta.url), 'utf8');
+assert(!/<script\b[^>]*\bsrc\s*=/i.test(html), 'External script reference');
+assert(!/<link\b[^>]*\bhref\s*=/i.test(html), 'External stylesheet reference');
+assert(!/<(?:img|iframe|video)\b[^>]*\bsrc\s*=\s*["']https?:/i.test(html), 'External media');
+assert(!/url\(\s*["']?https?:/i.test(html), 'External CSS resource');
+const script = html.match(/<script>([\s\S]*)<\/script>/)[1];
+new vm.Script(script);
+assert(Buffer.byteLength(html) < 1_000_000, 'Keep the offline HTML below 1 MB');
+console.log('Offline checks passed: embedded assets, classic script syntax, HTML below 1 MB.');
