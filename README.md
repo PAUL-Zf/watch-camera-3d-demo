@@ -2,7 +2,7 @@
 
 本地离线的手表摄像头 3D 视野概念模拟器。比较屏幕面前摄、表体背面后摄、12 点钟侧摄、3 点钟侧摄在佩戴姿势及表体翻转过程中的视野。
 
-版本：0.1.9；项目采用 MIT 开源许可证，见 `LICENSE`。
+版本：0.1.10；项目采用 MIT 开源许可证，见 `LICENSE`。
 
 ## GitHub Pages 在线发布
 
@@ -22,7 +22,11 @@
 
 官方说明：[配置发布来源](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site) · [创建 Pages 网站](https://docs.github.com/en/pages/getting-started-with-github-pages/creating-a-github-pages-site)。
 
-## 0.1.9 参数图标与快捷选择反馈
+## 0.1.10 页签图标
+
+浏览器页签使用与左上角相同的深色圆角底、白色 W 与青绿色圆点标识。SVG 图标内嵌于 HTML，离线版和 Pages 版共用，无需额外网络请求。
+
+## 0.1.9 参数图标与快捷选择反馈（历史版本）
 
 滑块参数使用统一线条的本地 SVG 图标，配以轻渐变图标底座、细边框与微阴影。姿势、表体、镜头三类参数有不同的柔和强调色，文字层级及悬停 / 键盘焦点反馈统一；保持原来的滑块、零位标记和键盘操作。
 

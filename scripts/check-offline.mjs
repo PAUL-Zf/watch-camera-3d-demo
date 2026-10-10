@@ -6,7 +6,11 @@ const hosted = await readFile(new URL('../docs/index.html', import.meta.url), 'u
 assert.equal(hosted, html, 'GitHub Pages must serve the complete current offline build');
 assert.equal(await readFile(new URL('../docs/.nojekyll', import.meta.url), 'utf8'), '', 'Disable Jekyll processing for the bundled app');
 assert(!/<script\b[^>]*\bsrc\s*=/i.test(html), 'External script reference');
-assert(!/<link\b[^>]*\bhref\s*=/i.test(html), 'External stylesheet reference');
+const iconLink = /<link rel="icon" type="image\/svg\+xml" href="(data:image\/svg\+xml,[^"]+)">/;
+assert(iconLink.test(html), 'Include a self-contained SVG tab icon');
+const icon = decodeURIComponent(html.match(iconLink)[1].slice('data:image/svg+xml,'.length));
+assert(icon.includes('<svg') && icon.includes('viewBox="0 0 32 32"'), 'Valid scalable favicon');
+assert(!/<link\b[^>]*\bhref\s*=/i.test(html.replace(iconLink, '')), 'External stylesheet or icon reference');
 assert(!/<(?:img|iframe|video)\b[^>]*\bsrc\s*=\s*["']https?:/i.test(html), 'External media');
 assert(!/url\(\s*["']?https?:/i.test(html), 'External CSS resource');
 const script = html.match(/<script>([\s\S]*)<\/script>/)[1];
