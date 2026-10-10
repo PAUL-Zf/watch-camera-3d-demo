@@ -4,6 +4,24 @@
 
 版本：0.1.9；项目采用 MIT 开源许可证，见 `LICENSE`。
 
+## GitHub Pages 在线发布
+
+发布文件已准备在 `docs/index.html`，与单文件离线版本完全相同。`docs/.nojekyll` 禁用不需要的 Jekyll 处理。启用 Pages 后可在线使用全部浏览器功能，离线 HTML 仍可独立下载运行。
+
+首次启用（需要在 GitHub 仓库设置中操作一次）：
+
+1. 使用仓库所有者或管理员账号打开 [Pages 设置](https://github.com/PAUL-Zf/watch-camera-3d-demo/settings/pages)。
+2. 在 **Build and deployment** 中，将 **Source** 设为 **Deploy from a branch**。
+3. 将 **Branch** 设为 **main**，旁边目录设为 **/docs**，点击 **Save**。
+4. 打开 [Actions](https://github.com/PAUL-Zf/watch-camera-3d-demo/actions)，等待 **pages build and deployment** 成功；也可返回 Pages 设置查看 **Visit site**。
+5. 部署成功后访问 [在线 Demo](https://paul-zf.github.io/watch-camera-3d-demo/)。此链接是预期地址，准备文件本身不等于已启用 Pages。
+
+后续更新：执行 `npm run check`（或 `npm run build`），构建会同时更新 `dist/watch-camera-demo.html` 和 `docs/index.html`；将新生成的 `docs` 文件提交到 `main` 后，Pages 会自动发布。不必每次重新设置，也不用手动复制网页。
+
+若尚未看到网站，先检查 Actions 的部署是否成功。初次发布可能需等待最多约 10 分钟；不要把源目录选成仓库根目录，否则可能显示 README 而非 Demo。若没有 Settings 或 Save 无法操作，确认当前登录账号对该仓库具有管理员或维护者权限。
+
+官方说明：[配置发布来源](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site) · [创建 Pages 网站](https://docs.github.com/en/pages/getting-started-with-github-pages/creating-a-github-pages-site)。
+
 ## 0.1.9 参数图标与快捷选择反馈
 
 滑块参数使用统一线条的本地 SVG 图标，配以轻渐变图标底座、细边框与微阴影。姿势、表体、镜头三类参数有不同的柔和强调色，文字层级及悬停 / 键盘焦点反馈统一；保持原来的滑块、零位标记和键盘操作。
@@ -125,7 +143,7 @@ npm ci
 npm run check
 ```
 
-`npm run check` 执行测试、构建和离线资源检查。独立执行 `npm run build` 会更新 `dist/watch-camera-demo.html`。
+`npm run check` 执行测试、构建和离线 / Pages 入口检查。独立执行 `npm run build` 会同时更新 `dist/watch-camera-demo.html` 和 `docs/index.html`。
 
 代码结构：
 

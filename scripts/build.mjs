@@ -10,5 +10,9 @@ const css = await readFile(path.join(root, 'src/style.css'), 'utf8');
 const html = template.replace('/* INLINE_STYLE */', () => css).replace('/* INLINE_SCRIPT */', () => bundle.outputFiles[0].text.replace(/<\/script/gi, '<\\/script'));
 await mkdir(path.join(root, 'dist'), { recursive: true });
 await writeFile(path.join(root, 'dist/watch-camera-demo.html'), html);
+// Branch-based GitHub Pages serves /docs; keep its entry point identical to the offline build.
+await mkdir(path.join(root, 'docs'), { recursive: true });
+await writeFile(path.join(root, 'docs/index.html'), html);
+await writeFile(path.join(root, 'docs/.nojekyll'), '');
 await copyFile(path.join(root, 'node_modules/three/LICENSE'), path.join(root, 'THIRD_PARTY_LICENSES.txt'));
-console.log(`Built dist/watch-camera-demo.html (${Buffer.byteLength(html).toLocaleString()} bytes); all assets embedded.`);
+console.log(`Built dist/watch-camera-demo.html and docs/index.html (${Buffer.byteLength(html).toLocaleString()} bytes each); all assets embedded.`);
