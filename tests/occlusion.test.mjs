@@ -51,3 +51,18 @@ test('rear camera projects frontal sign rightward and upward, with no inversion 
   const bottom = projectLocal(new THREE.Vector3(0, -.14, 0)), top = projectLocal(new THREE.Vector3(0, .14, 0));
   assert.ok(right.x > left.x, 'Text is mirrored left-to-right'); assert.ok(top.y > bottom.y, 'Text is upside down');
 });
+
+test('inward look-at-watch preset retains unoccluded facial landmarks on either wrist', () => {
+  const world = createWorld(), c = new THREE.PerspectiveCamera();
+  for (const side of ['left', 'right']) {
+    updatePose(world.rig, PRESETS.look, side); applyCameraConfig(c, world.rig, DEFAULT_CAMERAS[0]); world.scene.updateMatrixWorld(true);
+    const meshes = []; world.scene.traverse(o => { if (o.isMesh && o.layers.test(c.layers)) meshes.push(o); });
+    const origin = c.getWorldPosition(new THREE.Vector3());
+    const visible = world.facePoints.filter(point => {
+      const p = point.clone().project(c); if (p.z < -1 || p.z > 1 || Math.abs(p.x) > 1 || Math.abs(p.y) > 1) return false;
+      const delta = point.clone().sub(origin), distance = delta.length();
+      return new THREE.Raycaster(origin, delta.normalize(), c.near, distance - .008).intersectObjects(meshes, false).length === 0;
+    });
+    assert.ok(visible.length >= 4, `${side}: face is blocked by the inward arm`);
+  }
+});

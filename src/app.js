@@ -27,7 +27,7 @@ function slider(key, label, min, max, value, group) {
 }
 function renderUI() {
   $('#poseList').innerHTML = Object.entries(PRESETS).map(([key, p]) => `<button data-preset="${key}" class="${state.preset === key ? 'active' : ''}">${p.label}</button>`).join('');
-  $('#poseSliders').innerHTML = [['raise', '肩部抬臂'], ['elbow', '肘部弯曲'], ['twist', '前臂旋转'], ['wrist', '腕部弯曲']].map(([k, label]) => slider(k, label, ...POSE_LIMITS[k], state.pose[k], 'pose')).join('');
+  $('#poseSliders').innerHTML = [['raise', '肩部抬臂'], ['inward', '手臂水平内收 · 肩部'], ['elbow', '肘部弯曲'], ['twist', '前臂旋转'], ['wrist', '腕部弯曲']].map(([k, label]) => slider(k, label, ...POSE_LIMITS[k], state.pose[k], 'pose')).join('');
   $('#watchSliders').innerHTML = [['flip', '表体立起角度'], ['spin', '底座连接件旋转']].map(([k, label]) => slider(k, label, ...POSE_LIMITS[k], state.pose[k], 'pose')).join('');
   $('#cameraTabs').innerHTML = state.cameras.map((c, i) => `<button data-camera="${i}" style="--cam-color:${COLORS[i]}" class="${i === state.selected ? 'active' : ''}">${c.name}</button>`).join('');
   $('#feeds').innerHTML = state.cameras.map((c, i) => `<article class="feed ${i === state.selected ? 'selected' : ''} ${c.enabled ? '' : 'disabled'}" data-camera="${i}" style="--cam-color:${COLORS[i]}" tabindex="0" role="button" aria-label="配置摄像头 ${c.name}"><div class="feed-header"><span class="cam-letter">${c.name}</span><span class="feed-title" id="title-${i}">${SURFACES[c.surface].label}</span><span class="feed-selection">↗</span></div><div class="camera-view" id="viewport-${i}"><span class="feed-crosshair"></span><span class="feed-fov" id="fov-${i}">HFOV ${c.fov}°</span><div class="feed-disabled">镜头已关闭</div></div><div class="feed-bottom"><span id="details-${i}"></span><span class="visibility-status" id="status-${i}">正在分析视野…</span></div></article>`).join('');
@@ -55,7 +55,7 @@ function syncUI() {
   });
   document.querySelectorAll('[data-camera]').forEach(b => b.classList.toggle('active', +b.dataset.camera === state.selected));
   document.querySelectorAll('.feed-key span').forEach((el, i) => { el.lastChild.textContent = ` ${state.cameras[i].name} ${SURFACES[state.cameras[i].surface].label}`; });
-  const baseLabel = state.pose.flip === 0 ? '表体平放：表背镜头通常被底座挡住。选择“抬腕立起”，观察后摄如何转向环境。' : '表体已立起：前后摄朝向随翻转变化。镜头是否看向正前方，还取决于手臂姿势和转腕角度。';
+  const baseLabel = state.pose.flip === 0 ? '可用“手臂水平内收”把手腕带到身体前方。表体平放：表背镜头通常被底座挡住。选择“抬腕立起”，观察后摄如何转向环境。' : '表体已立起：前后摄朝向随翻转变化。镜头是否看向正前方，还取决于手臂姿势和转腕角度。';
   $('#hint').textContent = state.showBody ? baseLabel : '人体已隐藏，相关遮挡也已移除；此状态用于排查镜头方向，不代表真实佩戴视野。';
 }
 function selectCamera(i) {
@@ -172,7 +172,7 @@ function capture() {
       const image = ctx.createImageData(width, height); for (let row = 0; row < height; row++) image.data.set(pixels.subarray((height - row - 1) * width * 4, (height - row) * width * 4), row * width * 4);
       ctx.putImageData(image, x, y + header);
     });
-    ctx.fillStyle = '#bbcfd6'; ctx.font = '18px sans-serif'; ctx.fillText(`${state.side === 'left' ? '左腕' : '右腕'} | 表体立起 ${state.pose.flip}° | ${PRESETS[state.preset]?.label || '自定义姿势'} | 水平视场角 ${state.cameras.map(c => c.fov + '°').join(' / ')}`, 20, canvas.height - 38);
+    ctx.fillStyle = '#bbcfd6'; ctx.font = '18px sans-serif'; ctx.fillText(`${state.side === 'left' ? '左腕' : '右腕'} | 内收 ${state.pose.inward}° | 表体立起 ${state.pose.flip}° | ${PRESETS[state.preset]?.label || '自定义姿势'} | 水平视场角 ${state.cameras.map(c => c.fov + '°').join(' / ')}`, 20, canvas.height - 38);
     ctx.font = '14px sans-serif'; ctx.fillStyle = '#8ca6b2'; ctx.fillText('WATCH / VISION · 概念视野模拟，非实机成像效果', 20, canvas.height - 14);
     canvas.toBlob(blob => { if (blob) { download(blob, 'watch-camera-comparison.png'); toast('四路对比图已生成'); } }, 'image/png');
   } finally {

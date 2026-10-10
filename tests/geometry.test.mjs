@@ -81,3 +81,27 @@ test('old exported configurations migrate to zero added sensor rotation, and inv
   assert.ok(validateState(legacy).cameras.every(c => c.roll === 0));
   legacy.cameras[1].roll = 181; assert.throws(() => validateState(legacy), /画面旋转/);
 });
+
+test('horizontal inward motion brings the wrist toward the midline without changing bone lengths', () => {
+  const rig = createRig(); updatePose(rig, { ...PRESETS.look, inward: 0 });
+  const neutral = rig.wrist.getWorldPosition(new THREE.Vector3());
+  updatePose(rig, PRESETS.look);
+  const shoulder = rig.shoulder.getWorldPosition(new THREE.Vector3()), elbow = rig.elbow.getWorldPosition(new THREE.Vector3()), wrist = rig.wrist.getWorldPosition(new THREE.Vector3());
+  assert.ok(Math.abs(wrist.x) < .05, 'Look-at-watch wrist should be in front of the torso');
+  assert.ok(Math.abs(wrist.x) < Math.abs(neutral.x)); assert.ok(wrist.z > .25);
+  close(shoulder.distanceTo(elbow), .30); close(elbow.distanceTo(wrist), .27); close(wrist.y, neutral.y);
+});
+test('positive inward moves toward the midline on both wrists with mirrored horizontal positions', () => {
+  const rig = createRig();
+  updatePose(rig, { ...PRESETS.look, inward: 0 }, 'left'); const neutralL = rig.wrist.getWorldPosition(new THREE.Vector3());
+  updatePose(rig, PRESETS.look, 'left'); const inwardL = rig.wrist.getWorldPosition(new THREE.Vector3());
+  updatePose(rig, { ...PRESETS.look, inward: 0 }, 'right'); const neutralR = rig.wrist.getWorldPosition(new THREE.Vector3());
+  updatePose(rig, PRESETS.look, 'right'); const inwardR = rig.wrist.getWorldPosition(new THREE.Vector3());
+  assert.ok(inwardL.x < neutralL.x); assert.ok(inwardR.x > neutralR.x);
+  close(inwardL.x, -inwardR.x); close(inwardL.y, inwardR.y); close(inwardL.z, inwardR.z);
+});
+test('legacy pose imports preserve zero horizontal motion and reject out-of-range inward angles', () => {
+  const state = defaultState(); delete state.pose.inward;
+  close(validateState(state).pose.inward, 0);
+  state.pose.inward = 91; assert.throws(() => validateState(state));
+});

@@ -10,10 +10,10 @@ export const SURFACES = {
   nine: { label: '9 点钟侧', position: [-.024, .002, 0], normal: [-1, 0, 0], up: [0, 1, 0] }
 };
 export const PRESETS = {
-  look: { label: '抬腕看表', raise: 20, elbow: 110, twist: -25, wrist: 0, flip: 0, spin: 0 },
-  upright: { label: '抬腕立起 · 双摄', raise: 65, elbow: 20, twist: 0, wrist: 0, flip: 90, spin: 0 },
-  down: { label: '自然下垂', raise: 0, elbow: 5, twist: 0, wrist: 0, flip: 0, spin: 0 },
-  forward: { label: '抬臂向前', raise: 85, elbow: 5, twist: 0, wrist: 0, flip: 90, spin: 0 }
+  look: { label: '抬腕看表', raise: 45, inward: 35, elbow: 95, twist: -28, wrist: 0, flip: 0, spin: 0 },
+  upright: { label: '抬腕立起 · 双摄', raise: 80, inward: 25, elbow: 5, twist: 0, wrist: 0, flip: 90, spin: 0 },
+  down: { label: '自然下垂', raise: 0, inward: 0, elbow: 5, twist: 0, wrist: 0, flip: 0, spin: 0 },
+  forward: { label: '抬臂向前', raise: 85, inward: 0, elbow: 5, twist: 0, wrist: 0, flip: 90, spin: 0 }
 };
 export const DEFAULT_CAMERAS = [
   { name: 'A', surface: 'front', attach: 'body', yaw: 0, pitch: 0, roll: 0, fov: 90, enabled: true },
@@ -39,7 +39,10 @@ export function createRig() {
 export function updatePose(rig, pose, side = 'left', swing = 0) {
   const sign = side === 'left' ? 1 : -1;
   rig.shoulder.position.set(sign * .225, 1.38, 0);
-  rig.shoulder.rotation.set(-(pose.raise + swing) * RAD, 0, 0);
+  // Rotate the flexion plane toward the torso before raising the arm.
+  // Positive inward has the same meaning on either wrist. Elbow remains
+  // a hinge; forearm twist remains a separate rotation about its own axis.
+  rig.shoulder.rotation.set(-(pose.raise + swing) * RAD, -(pose.inward ?? 0) * sign * RAD, 0, 'YXZ');
   rig.elbow.rotation.x = -pose.elbow * RAD;
   rig.forearm.rotation.y = pose.twist * RAD * sign;
   rig.wrist.rotation.x = pose.wrist * RAD;

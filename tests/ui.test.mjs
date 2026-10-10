@@ -105,3 +105,14 @@ test('rear-camera rotation controls change image-up while keeping lens aim fixed
     assert.deepEqual(e.errors, []);
   } finally { e.close(); }
 });
+
+test('horizontal inward slider moves camera position and persists on wrist-side changes', () => {
+  const e = setup(); try {
+    click(e, '[data-preset="look"]'); assert.equal(e.w.watchVision.getState().pose.inward, 35);
+    slide(e, '#pose-inward', 0); const before = e.w.watchVision.cameraPoses()[0].position;
+    slide(e, '#pose-inward', 35); const after = e.w.watchVision.cameraPoses()[0].position;
+    assert.ok(Math.abs(after[0]) < Math.abs(before[0])); assert.equal(e.doc.querySelector('#pose-inward-value').textContent, '35°');
+    click(e, '[data-side="right"]'); assert.equal(e.w.watchVision.getState().pose.inward, 35);
+    assert.deepEqual(e.errors, []);
+  } finally { e.close(); }
+});

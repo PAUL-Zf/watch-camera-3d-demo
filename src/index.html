@@ -12,7 +12,7 @@
   <div class="app">
     <header class="topbar">
       <div class="brand"><span class="brand-mark">W<span>•</span></span><div><strong>WATCH <span>/</span> VISION</strong><small>手表摄像头 · 视野实验室</small></div></div>
-      <div class="top-meta"><span class="offline"><i></i> 本地离线</span><span class="version">CONCEPT DEMO · V0.1.1</span></div>
+      <div class="top-meta"><span class="offline"><i></i> 本地离线</span><span class="version">CONCEPT DEMO · V0.1.2</span></div>
       <div class="top-actions"><button id="exportConfig">导出配置</button><button id="importConfig">导入配置</button><button id="reset" class="dark-button">重置实验</button><input id="configFile" type="file" accept="application/json,.json" hidden></div>
     </header>
     <main class="workspace">
@@ -21,6 +21,7 @@
         <label class="field-label" for="side">佩戴手腕</label><div class="segmented" id="sideGroup"><button data-side="left" class="active">左腕</button><button data-side="right">右腕</button></div>
         <div class="pose-list" id="poseList"></div>
         <div id="poseSliders" class="sliders"></div>
+        <p class="control-note">水平内收：正值让手腕靠近身体中线，负值向外展开；左右腕方向自动对应。前臂旋转则是绕小臂自身轴线转动。</p>
         <div class="divider"></div>
         <div class="section-heading"><span class="step">02</span><div><h2>活动表体</h2><p>底座留在手腕，表体绕轴立起</p></div></div>
         <div id="watchSliders" class="sliders"></div>
