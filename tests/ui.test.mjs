@@ -140,3 +140,49 @@ test('horizontal inward slider moves camera position and persists on wrist-side 
     assert.deepEqual(e.errors, []);
   } finally { e.close(); }
 });
+
+test('comparison summary selects slots and follows mount, FOV and enable edits', () => {
+  const e = setup(); try {
+    click(e, '#comparisonRows [data-camera="3"]');
+    assert.equal(e.w.watchVision.getState().selected, 3);
+    change(e, '#cameraAttach', 'base'); change(e, '#cameraSurface', 'six'); slide(e, '#camera-fov', 110);
+    const row = e.doc.querySelector('#comparisonRows [data-camera="3"]');
+    assert.equal(row.querySelector('.summary-mount > span').textContent, '6 点侧');
+    assert.equal(row.querySelector('.summary-mount small').textContent, '固定底座');
+    assert.equal(row.querySelector('.summary-fov > span').textContent, '110°');
+    const input = e.doc.querySelector('#cameraEnabled'); input.checked = false; input.dispatchEvent(new e.w.Event('change', { bubbles: true }));
+    assert.equal(row.querySelector('.summary-fov small').textContent, '已关闭');
+    assert.equal(row.getAttribute('aria-pressed'), 'true'); assert.deepEqual(e.errors, []);
+  } finally { e.close(); }
+});
+test('matching FOV changes all four lenses without changing mounts, aim or enable state', () => {
+  const e = setup(); try {
+    click(e, '#comparisonRows [data-camera="1"]'); slide(e, '#camera-fov', 115);
+    const input = e.doc.querySelector('#cameraEnabled'); input.checked = false; input.dispatchEvent(new e.w.Event('change', { bubbles: true }));
+    const before = e.w.watchVision.getState(), poses = e.w.watchVision.cameraPoses();
+    click(e, '#matchFov'); const after = e.w.watchVision.getState();
+    assert.ok(after.cameras.every(c => c.fov === 115));
+    for (let i = 0; i < 4; i++) {
+      const { fov: oldFov, ...oldConfig } = before.cameras[i], { fov: newFov, ...newConfig } = after.cameras[i];
+      assert.deepEqual(newConfig, oldConfig); assert.deepEqual(e.w.watchVision.cameraPoses()[i], poses[i]);
+    }
+    const stored = JSON.parse(e.w.localStorage.getItem('watch-camera-vision-v1'));
+    assert.ok(stored.cameras.every(c => c.fov === 115)); assert.equal(stored.cameras[1].enabled, false);
+    assert.equal(e.doc.querySelector('#camera-fov-value').textContent, '115°'); assert.deepEqual(e.errors, []);
+  } finally { e.close(); }
+});
+test('summary opens and closes with focus return; slider progress follows presets and edits', () => {
+  const e = setup(); try {
+    click(e, '#toggleSummary'); assert.equal(e.doc.querySelector('#toggleSummary').getAttribute('aria-expanded'), 'true');
+    assert.equal(e.doc.activeElement.id, 'closeSummary');
+    e.doc.dispatchEvent(new e.w.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    assert.equal(e.doc.querySelector('#toggleSummary').getAttribute('aria-expanded'), 'false');
+    assert.equal(e.doc.activeElement.id, 'toggleSummary');
+    slide(e, '#camera-yaw', 0); const range = e.doc.querySelector('#camera-yaw');
+    assert.equal(range.style.getPropertyValue('--progress'), '50%'); assert.equal(range.getAttribute('aria-valuetext'), '0 度');
+    slide(e, '#camera-yaw', 90); assert.equal(range.style.getPropertyValue('--progress'), '100%');
+    click(e, '[data-preset="upright"]');
+    const flip = e.doc.querySelector('#pose-flip'); assert.equal(flip.style.getPropertyValue('--progress'), '75%');
+    assert.deepEqual(e.errors, []);
+  } finally { e.close(); }
+});

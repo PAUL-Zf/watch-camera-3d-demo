@@ -25,7 +25,10 @@ function download(blob, filename) {
   const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = filename; document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 10000);
 }
 function slider(key, label, min, max, value, group) {
-  return `<div class="slider-field"><div class="slider-heading"><label for="${group}-${key}" title="${label} · 范围 ${min}°–${max}°">${label}</label><output id="${group}-${key}-value" for="${group}-${key}">${value}°</output></div><input id="${group}-${key}" data-group="${group}" data-key="${key}" type="range" min="${min}" max="${max}" value="${value}" step="1" title="${label} · 范围 ${min}°–${max}°"><div class="slider-bounds"><span>${min}°</span><span>${max}°</span></div></div>`;
+  const icons = { raise: '↗', inward: '↔', elbow: '∠', twist: '⟳', wrist: '∠', flip: '↗', spin: '⟳', yaw: '↔', pitch: '↕', roll: '⟳', fov: '⋁' };
+  const progress = (value - min) / (max - min) * 100;
+  const zero = min < 0 && max > 0 ? `<i class="slider-zero" style="left:${-min / (max - min) * 100}%" aria-hidden="true" title="0° 基准"></i>` : '';
+  return `<div class="slider-field"><div class="slider-heading"><label for="${group}-${key}" title="${label} · 范围 ${min}°–${max}°"><span class="parameter-icon" aria-hidden="true">${icons[key]}</span>${label}</label><output id="${group}-${key}-value" for="${group}-${key}">${value}°</output></div><div class="slider-track">${zero}<input id="${group}-${key}" data-group="${group}" data-key="${key}" type="range" min="${min}" max="${max}" value="${value}" step="1" style="--progress:${progress}%" title="${label} · 范围 ${min}°–${max}°"></div></div>`;
 }
 function renderUI() {
   const presetNames = { look: '抬腕看表', upright: '立起双摄', down: '自然下垂', forward: '向前拍摄' };
@@ -34,6 +37,7 @@ function renderUI() {
   $('#watchSliders').innerHTML = [['flip', '表体立起角度'], ['spin', '底座连接件旋转']].map(([k, label]) => slider(k, label, ...POSE_LIMITS[k], state.pose[k], 'pose')).join('');
   $('#cameraTabs').innerHTML = state.cameras.map((c, i) => `<button data-camera="${i}" aria-label="配置摄像头 ${c.name}" style="--cam-color:${COLORS[i]}" class="${i === state.selected ? 'active' : ''}"><span class="slot-letter"><i aria-hidden="true"></i>${c.name}</span><small class="slot-surface">${SLOT_NAMES[c.surface]}</small></button>`).join('');
   $('#feeds').innerHTML = state.cameras.map((c, i) => `<article class="feed ${i === state.selected ? 'selected' : ''} ${c.enabled ? '' : 'disabled'}" data-camera="${i}" style="--cam-color:${COLORS[i]}" tabindex="0" role="button" aria-label="配置摄像头 ${c.name}"><div class="feed-header"><span class="cam-letter">${c.name}</span><span class="feed-title" id="title-${i}">${SURFACES[c.surface].label}</span><span class="feed-selection">↗</span></div><div class="feed-frame"><div class="camera-view" id="viewport-${i}"><span class="feed-crosshair"></span><span class="feed-fov" id="fov-${i}">HFOV ${c.fov}°</span><div class="feed-disabled">镜头已关闭</div></div></div><div class="feed-bottom"><span id="details-${i}"></span><span class="visibility-status" id="status-${i}">正在分析视野…</span></div></article>`).join('');
+  $('#comparisonRows').innerHTML = state.cameras.map((c, i) => `<button data-camera="${i}" aria-label="配置摄像头 ${c.name}" class="comparison-row" style="--cam-color:${COLORS[i]}"><span class="summary-letter">${c.name}</span><span class="summary-mount"><span></span><small></small></span><span class="summary-fov"><span></span><small></small></span></button>`).join('');
   renderEditor(); syncUI(); measure();
 }
 function renderEditor() {
@@ -41,7 +45,7 @@ function renderEditor() {
   $('#cameraEnabled').checked = c.enabled;
   $('#cameraEnabled').setAttribute('aria-label', `启用摄像头 ${c.name}`);
   $('.camera-section').style.setProperty('--selected-color', COLORS[state.selected]);
-  $('#cameraEditor').innerHTML = `<div class="camera-mount-fields"><label class="select-row">安装部件<select id="cameraAttach"><option value="body" ${c.attach === 'body' ? 'selected' : ''}>可翻转表体</option><option value="base" ${c.attach === 'base' ? 'selected' : ''}>腕上固定底座</option></select></label><label class="select-row">安装位置<select id="cameraSurface">${Object.entries(SURFACES).map(([key, surface]) => `<option value="${key}" ${key === c.surface ? 'selected' : ''}>${c.attach === 'base' && key === 'rear' ? '底座背面 · 朝皮肤' : surface.label}</option>`).join('')}</select></label></div><div class="sliders camera-sliders">${slider('yaw', '水平偏转', -90, 90, c.yaw, 'camera')}${slider('pitch', '上下倾斜', -90, 90, c.pitch, 'camera')}${slider('roll', '画面旋转 · 安装', -180, 180, c.roll, 'camera')}${slider('fov', '水平视场角 HFOV', 40, 130, c.fov, 'camera')}</div><div class="camera-shortcuts"><div class="angle-shortcuts" role="group" aria-label="画面旋转快捷角度"><span class="shortcut-caption">画面旋转</span><button data-roll="0">0°</button><button data-roll="90">90°</button><button data-roll="180">180°</button></div><div class="angle-shortcuts" role="group" aria-label="水平视场角快捷角度"><span class="shortcut-caption">水平视场角</span><button data-fov="60">窄 60°</button><button data-fov="90">中 90°</button><button data-fov="120">广 120°</button></div></div><button id="cameraDefault" class="camera-default">恢复此槽位的初始布局</button>`;
+  $('#cameraEditor').innerHTML = `<div class="camera-mount-fields"><label class="select-row">安装部件<select id="cameraAttach"><option value="body" ${c.attach === 'body' ? 'selected' : ''}>可翻转表体</option><option value="base" ${c.attach === 'base' ? 'selected' : ''}>腕上固定底座</option></select></label><label class="select-row">安装位置<select id="cameraSurface">${Object.entries(SURFACES).map(([key, surface]) => `<option value="${key}" ${key === c.surface ? 'selected' : ''}>${c.attach === 'base' && key === 'rear' ? '底座背面 · 朝皮肤' : surface.label}</option>`).join('')}</select></label></div><div class="sliders camera-sliders">${slider('yaw', '水平偏转', -90, 90, c.yaw, 'camera')}${slider('pitch', '上下倾斜', -90, 90, c.pitch, 'camera')}${slider('roll', '画面旋转 · 安装', -180, 180, c.roll, 'camera')}${slider('fov', '水平视场角 HFOV', 40, 130, c.fov, 'camera')}</div><div class="camera-shortcuts"><div class="angle-shortcuts" role="group" aria-label="画面旋转快捷角度"><span class="shortcut-caption">画面旋转</span><button data-roll="0">0°</button><button data-roll="90">90°</button><button data-roll="180">180°</button></div><div class="angle-shortcuts" role="group" aria-label="水平视场角快捷角度"><span class="shortcut-caption">水平视场角</span><button data-fov="60">窄 60°</button><button data-fov="90">中 90°</button><button data-fov="120">广 120°</button></div></div><div class="camera-actions"><button id="cameraDefault" class="camera-default" title="恢复此槽位的初始布局">恢复当前镜头</button><button id="toggleSummary" aria-controls="comparisonPanel" aria-expanded="${$('#comparisonPanel').classList.contains('summary-open')}">▦ 对比摘要</button></div>`;
 }
 function syncUI() {
   document.querySelectorAll('[data-side]').forEach(b => b.classList.toggle('active', b.dataset.side === state.side));
@@ -63,11 +67,22 @@ function syncUI() {
     $(`#details-${i}`).textContent = `${c.attach === 'body' ? '活动表体' : '固定底座'} · ${c.yaw}° / ${c.pitch}° / ${c.roll}°`;
     $(`#details-${i}`).title = `偏转 ${c.yaw}° / 倾斜 ${c.pitch}° / 画面旋转 ${c.roll}°`;
     const feed = $(`#viewport-${i}`).closest('.feed'); feed.classList.toggle('disabled', !c.enabled); feed.classList.toggle('selected', i === state.selected); feed.setAttribute('aria-pressed', String(i === state.selected));
+    const summary = $(`#comparisonRows [data-camera="${i}"]`);
+    summary.setAttribute('aria-pressed', String(i === state.selected)); summary.classList.toggle('is-disabled', !c.enabled);
+    summary.querySelector('.summary-mount > span').textContent = SLOT_NAMES[c.surface];
+    summary.querySelector('.summary-mount small').textContent = c.attach === 'body' ? '活动表体' : '固定底座';
+    summary.querySelector('.summary-fov > span').textContent = `${c.fov}°`;
+    summary.querySelector('.summary-fov small').textContent = c.enabled ? '已启用' : '已关闭';
   });
   document.querySelectorAll('[data-camera]').forEach(b => b.classList.toggle('active', +b.dataset.camera === state.selected));
   document.querySelectorAll('.feed-key span').forEach((el, i) => { el.lastChild.textContent = ` ${state.cameras[i].name} ${SURFACES[state.cameras[i].surface].label}`; });
   const baseLabel = state.pose.flip === 0 ? '可用“手臂水平内收”把手腕带到身体前方。表体平放：表背镜头通常被底座挡住。选择“抬腕立起”，观察后摄如何转向环境。' : '表体已立起：前后摄朝向随翻转变化。镜头是否看向正前方，还取决于手臂姿势和转腕角度。';
   $('#hint').textContent = state.showBody ? baseLabel : '人体已隐藏，相关遮挡也已移除；此状态用于排查镜头方向，不代表真实佩戴视野。';
+  document.querySelectorAll('input[type="range"]').forEach(input => {
+    input.style.setProperty('--progress', `${(+input.value - +input.min) / (+input.max - +input.min) * 100}%`);
+    input.setAttribute('aria-valuetext', `${input.value} 度`);
+  });
+  $('#matchFov').textContent = `统一四路视场角 · ${state.cameras[state.selected].fov}°`;
 }
 function selectCamera(i) {
   state.selected = i; renderEditor(); syncUI(); applyState(); saveState();
@@ -211,6 +226,13 @@ function bindEvents() {
     else if (button.dataset.fov) { state.cameras[state.selected].fov = +button.dataset.fov; renderEditor(); }
     else if (button.dataset.view) { frameCamera(button.dataset.view); return; }
     else if (button.id === 'cameraDefault') { state.cameras[state.selected] = { ...DEFAULT_CAMERAS[state.selected] }; renderEditor(); }
+    else if (button.id === 'matchFov') { const fov = state.cameras[state.selected].fov; state.cameras.forEach(c => { c.fov = fov; }); renderEditor(); toast(`四路水平视场角已统一为 ${fov}°`); }
+    else if (button.id === 'toggleSummary' || button.id === 'closeSummary') {
+      if (button.id === 'toggleSummary' && getComputedStyle($('#comparisonPanel')).position === 'static' && getComputedStyle($('#comparisonPanel')).display !== 'none') { $('#matchFov').focus(); return; }
+      const open = button.id === 'toggleSummary' && !$('#comparisonPanel').classList.contains('summary-open');
+      $('#comparisonPanel').classList.toggle('summary-open', open); $('#toggleSummary').setAttribute('aria-expanded', String(open));
+      if (open) $('#closeSummary').focus(); else $('#toggleSummary').focus(); return;
+    }
     else if (button.id === 'reset') { stopAnimation(); state = defaultState(); renderUI(); frameCamera('full'); toast('已恢复初始姿势与四路布局'); }
     else if (button.id === 'animate') { toggleAnimation(); return; }
     else if (button.id === 'exportConfig') { download(new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' }), 'watch-camera-config.json'); return; }
@@ -219,6 +241,7 @@ function bindEvents() {
     else return;
     syncUI(); applyState(); saveState();
   });
+  document.addEventListener('keydown', event => { if (event.key === 'Escape' && $('#comparisonPanel').classList.contains('summary-open')) $('#closeSummary').click(); });
   $('#feeds').addEventListener('keydown', event => { const card = event.target.closest('.feed'); if (card && ['Enter', ' '].includes(event.key)) { event.preventDefault(); selectCamera(+card.dataset.camera); } });
   $('#mainViewport').addEventListener('keydown', event => {
     if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return;

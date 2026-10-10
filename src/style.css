@@ -31,7 +31,7 @@ h2 { font-size: 12px; line-height: 16px; letter-spacing: .1px; }
 .dark-button:hover { background: #36545f; }
 .workspace { display: grid; grid-template-columns: clamp(320px, 20vw, 360px) minmax(0, 1.3fr) minmax(0, 1fr); gap: 12px; padding: 10px 12px; width: 100%; min-width: 0; min-height: 0; }
 /* Compact base: structured cards, bounded row heights, no distributed spacer. */
-.control-panel { padding: 6px; background: #e8eef2; border: 1px solid #d8e2e9; border-radius: 12px; display: flex; flex-direction: column; gap: 4px; min-width: 0; min-height: 0; align-self: stretch; font-family: "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif; }
+.control-panel { position: relative; padding: 6px; background: #e8eef2; border: 1px solid #d8e2e9; border-radius: 12px; display: flex; flex-direction: column; gap: 4px; min-width: 0; min-height: 0; align-self: stretch; font-family: "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif; }
 .control-guide { display: none; flex: none; align-items: center; justify-content: space-between; color: #416878; font-size: 12px; height: 24px; padding: 0 4px; }
 .control-guide .guide-caption { color: #788b99; font-size: 11px; }
 .control-guide i { font-style: normal; color: #90aab5; }
@@ -58,11 +58,12 @@ h2 { font-size: 12px; line-height: 16px; letter-spacing: .1px; }
 .pose-list button { padding: 2px; height: 28px; text-align: center; font-size: 12px; white-space: nowrap; }
 .pose-list button.active { border-color: #58a6a2; background: #eef9f7; color: #13746e; box-shadow: inset 0 -2px #58a6a233; }
 .sliders { display: flex; flex-direction: column; gap: 1px; }
-.slider-field { display: grid; grid-template-columns: 110px minmax(0, 1fr) 38px; gap: 8px; align-items: center; height: 22px; min-width: 0; }
+.slider-field { display: grid; grid-template-columns: 127px minmax(0, 1fr) 38px; gap: 8px; align-items: center; height: 22px; min-width: 0; }
 .slider-heading { display: contents; }
 .slider-heading label { grid-column: 1; grid-row: 1; font-size: 13px; line-height: 20px; color: #4c6276; white-space: nowrap; }
 .slider-heading output { grid-column: 3; grid-row: 1; text-align: center; font-size: 13px; line-height: 20px; font-weight: 600; color: #315663; font-variant-numeric: tabular-nums; white-space: nowrap; border-radius: 5px; background: #edf5f5; }
-.slider-field input { grid-column: 2; grid-row: 1; display: block; width: 100%; min-width: 0; margin: 0; accent-color: #238b87; height: 22px; cursor: pointer; }
+.slider-track { grid-column: 2; grid-row: 1; position: relative; min-width: 0; }
+.slider-field input { display: block; width: 100%; min-width: 0; margin: 0; accent-color: #238b87; height: 22px; cursor: pointer; }
 .slider-bounds { display: none; }
 .angle-shortcuts { display: flex; gap: 4px; margin-top: 4px; min-width: 0; }
 .angle-shortcuts button { padding: 2px 3px; height: 24px; font-size: 12px; flex: 1; white-space: nowrap; }
@@ -231,9 +232,9 @@ footer span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* Use extra height for richer hierarchy rather than stretching slider rows. */
 @media (min-height: 900px) {
   .control-panel { padding: 8px; gap: 8px; }
-  .control-guide { display: flex; }
+  .control-guide { display: none; }
   .control-section { padding: 5px; }
-  .slider-field, .slider-field input { height: 26px; }
+  .slider-field, .slider-field input { height: 24px; }
   .pose-list button { height: 30px; }
   .camera-tabs { height: 34px; margin-bottom: 6px; }
   .slot-surface { display: block; }
@@ -241,7 +242,8 @@ footer span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .angle-shortcuts button, .camera-default { height: 26px; }
 }
 @media (min-height: 1080px) {
-  .control-panel { padding: 12px; gap: 12px; }
+  .control-panel { padding: 8px; gap: 8px; }
+  .control-guide { display: flex; }
   .control-section { padding: 5px; box-shadow: 0 2px 6px #1b3f4a05; }
   .section-heading { height: 36px; margin-bottom: 6px; }
   .section-title small { display: block; }
@@ -249,10 +251,10 @@ footer span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .wrist-row, .segmented { height: 32px; }
   .wrist-row, .pose-list, .camera-mount-fields { margin-bottom: 6px; }
   .pose-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .pose-list button { height: 32px; font-size: 13px; }
+  .pose-list button { height: 28px; font-size: 13px; }
   .sliders { gap: 2px; }
-  .slider-field { height: 32px; grid-template-columns: 120px minmax(0, 1fr) 40px; }
-  .slider-field input { height: 32px; }
+  .slider-field { height: 28px; grid-template-columns: 138px minmax(0, 1fr) 40px; }
+  .slider-field input { height: 28px; }
   .slider-heading label, .slider-heading output, .field-label, .select-row, .select-row select { font-size: 14px; }
   .select-row, .select-row select { height: 32px; }
   .camera-mount-fields { gap: 6px; }
@@ -269,11 +271,12 @@ footer span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .section-title small { display: block; }
   .step { padding: 7px; }
   .pose-list button { height: 36px; }
-  .sliders { gap: 5px; }
-  .slider-field { display: flex; flex-direction: column; align-items: stretch; height: 44px; gap: 4px; }
+  .sliders { gap: 3px; }
+  .slider-field { display: flex; flex-direction: column; align-items: stretch; height: 38px; gap: 2px; }
   .slider-heading { display: flex; align-items: center; justify-content: space-between; }
   .slider-heading output { min-width: 46px; padding: 1px 5px; }
-  .slider-field input { height: 18px; }
+  .slider-track { width: 100%; }
+  .slider-field input { height: 16px; }
   .camera-tabs { height: 42px; }
   .slot-surface { font-size: 11px; }
 }
@@ -292,4 +295,136 @@ footer span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .angle-shortcuts { margin-top: 2px; }
   .angle-shortcuts button, .camera-default { height: 22px; }
   .camera-default { margin-top: 2px; }
+}
+
+/* A shared baseline keeps numbers, titles and actions on the same line. */
+.section-heading { border-bottom: 1px solid #e7edf1; margin-bottom: 3px; padding-bottom: 3px; height: 28px; }
+.section-heading h2 { line-height: 22px; }
+.step { min-width: 26px; height: 22px; padding: 0 4px; display: flex; align-items: center; justify-content: center; }
+.section-description { display: none; font-size: 11px; line-height: 16px; color: #718795; padding: 2px 0 5px 34px; }
+.slider-heading label { display: flex; align-items: center; gap: 5px; }
+.parameter-icon { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 14px; color: #789b9f; font-size: 14px; line-height: 18px; }
+.slider-heading output { border: 1px solid #dceceb; background: #f0f7f6; font-size: 12px; line-height: 18px; }
+.slider-field:hover output { border-color: #96c8c3; color: #147d80; }
+.slider-track { --track-color: #238b87; }
+.slider-track input { appearance: none; -webkit-appearance: none; background: transparent; position: relative; z-index: 1; border-radius: 10px; }
+.slider-track input::-webkit-slider-runnable-track { height: 4px; border-radius: 6px; background: linear-gradient(to right, var(--track-color) 0 var(--progress), #e1e9ed var(--progress) 100%); }
+.slider-track input::-webkit-slider-thumb { appearance: none; -webkit-appearance: none; width: 12px; height: 12px; border: 2px solid var(--track-color); border-radius: 50%; background: white; margin-top: -4px; box-shadow: 0 1px 3px #20495226; transition: box-shadow .15s; }
+.slider-track input:hover::-webkit-slider-thumb { box-shadow: 0 0 0 3px #238b8718; }
+.slider-track input::-moz-range-track { height: 4px; border-radius: 6px; background: #e1e9ed; }
+.slider-track input::-moz-range-progress { height: 4px; border-radius: 6px; background: var(--track-color); }
+.slider-track input::-moz-range-thumb { width: 8px; height: 8px; border: 2px solid var(--track-color); border-radius: 50%; background: white; box-shadow: 0 1px 3px #20495226; }
+.slider-track input:hover::-moz-range-thumb { box-shadow: 0 0 0 3px #238b8718; }
+.slider-zero { position: absolute; top: 50%; height: 10px; width: 1px; background: #8bafb4; transform: translate(-50%, -50%); pointer-events: none; }
+.camera-actions { display: flex; gap: 5px; margin-top: 4px; }
+.camera-actions button { flex: 1; min-width: 0; margin: 0; height: 24px; padding: 2px; font-size: 12px; background: #f7f9fb; }
+#toggleSummary { color: #257d7a; background: #f1f8f6; }
+.comparison-space { flex: 1; min-height: 0; container-type: size; container-name: summary-space; }
+.comparison-panel { display: none; background: #f6fbfa; border: 1px solid #cfe3df; border-radius: 9px; padding: 8px; }
+.comparison-heading { display: flex; justify-content: space-between; align-items: center; height: 23px; }
+.comparison-heading h2 { font-size: 13px; color: #325b63; }
+.comparison-heading h2 span { color: #3b9189; margin-right: 3px; }
+#closeSummary { border: 0; background: transparent; font-size: 19px; padding: 0 4px; }
+.comparison-intro { font-size: 11px; color: #76918e; line-height: 18px; margin-bottom: 4px; }
+.comparison-rows { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; }
+.comparison-row { display: flex; align-items: center; gap: 5px; min-width: 0; height: 43px; padding: 3px 5px; border-color: #dbe7e5; text-align: left; }
+.comparison-row[aria-pressed="true"] { border-color: var(--cam-color); box-shadow: inset 2px 0 var(--cam-color); }
+.summary-letter { font-weight: 700; font-size: 12px; border-radius: 4px; background: var(--cam-color); color: #243e46; padding: 2px 4px; }
+.summary-mount, .summary-fov { font-size: 12px; color: #425d68; white-space: nowrap; }
+.summary-fov { margin-left: auto; text-align: right; font-variant-numeric: tabular-nums; }
+.summary-mount small, .summary-fov small { display: block; font-size: 9px; line-height: 14px; color: #8a9d9f; }
+.is-disabled .summary-letter { opacity: .5; }
+.match-fov { width: 100%; height: 27px; font-size: 12px; margin-top: 6px; color: #247a72; border-color: #b9d8d1; background: #edf7f3; }
+.comparison-panel.summary-open { display: block; position: absolute; bottom: 8px; left: 8px; right: 8px; z-index: 8; box-shadow: 0 8px 30px #17394433; }
+@container summary-space (min-height: 188px) {
+  .comparison-panel, .comparison-panel.summary-open { display: block; position: static; box-shadow: none; }
+  #closeSummary { display: none; }
+}
+@media (min-height: 900px) {
+  .section-description { display: block; }
+  .section-heading { height: 28px; }
+  .camera-actions button { height: 26px; }
+}
+@media (min-height: 1080px) {
+  .section-heading { height: 28px; margin-bottom: 3px; }
+  .camera-actions { margin-top: 6px; }
+  .camera-actions button { height: 30px; }
+  .slider-heading output { font-size: 13px; }
+}
+@media (min-height: 1360px) {
+  .section-heading { height: 30px; }
+  .section-description { font-size: 12px; line-height: 18px; padding-bottom: 7px; }
+}
+@media (max-height: 899px) {
+  .section-heading { height: 24px; }
+}
+@media (max-height: 620px) {
+  .section-heading { height: 20px; margin-bottom: 1px; padding-bottom: 1px; }
+  .step { height: 18px; }
+  .camera-actions { margin-top: 2px; }
+  .camera-actions button { height: 22px; }
+}
+/* Larger type for observation labels; sensor geometry stays independent. */
+.panel-top .eyebrow { font-size: 10px; }
+.panel-top h1 { font-size: 21px; line-height: 25px; }
+.panel-top h2 { font-size: 19px; line-height: 25px; }
+.scene-badge, .aspect-label { font-size: 11px; }
+.live-label, .view-buttons button { font-size: 12px; }
+.axis-note { font-size: 12px; }
+.axis-note span, .view-help { font-size: 11px; }
+.view-help { top: 96px; }
+.studio-toolbar, .studio-toolbar button { font-size: 12px; }
+#fps { font-size: 11px; }
+.readout strong { font-size: 15px; }
+.readout .eyebrow { font-size: 9px; }
+.readout-stat small { font-size: 11px; }
+.readout-stat b { font-size: 12px; }
+.explanation { font-size: 12px; line-height: 18px; }
+.feed { grid-template-rows: 38px minmax(0, 1fr) 46px; }
+.feed-title { font-size: 13px; }
+.cam-letter { font-size: 12px; width: 23px; height: 23px; }
+.feed-fov { font-size: 11px; padding: 3px 6px; }
+.feed-disabled { font-size: 13px; }
+.feed-bottom { font-size: 11px; line-height: 15px; }
+.feed-key { font-size: 11px; }
+.camera-info, .camera-info b, .target-legend { font-size: 12px; line-height: 17px; }
+.capture-button { font-size: 13px; height: 32px; }
+@media (max-width: 1250px) {
+  .panel-top h1 { font-size: 19px; }
+  .panel-top h2 { font-size: 17px; }
+  .studio-toolbar, .studio-toolbar button { font-size: 11px; }
+  .readout { flex-wrap: wrap; gap: 5px 10px; }
+}
+@media (max-height: 650px) {
+  .feed { grid-template-rows: 32px minmax(0, 1fr) 40px; }
+  .camera-info, .camera-info b, .target-legend { font-size: 11px; line-height: 15px; }
+}
+@media (max-width: 1000px) {
+  .panel-top h1 { font-size: 17px; }
+  .panel-top h2 { font-size: 15px; }
+  .feed { grid-template-rows: 30px minmax(0, 1fr) 38px; }
+  .feed-title, .feed-bottom { font-size: 10px; }
+  .cam-letter { width: 18px; height: 18px; font-size: 10px; }
+  .camera-info, .camera-info b, .target-legend, .feed-key { font-size: 10px; line-height: 14px; }
+  .capture-button { height: 26px; font-size: 11px; }
+}
+@media (forced-colors: active) {
+  .slider-track input { appearance: auto; }
+  .slider-zero { display: none; }
+}
+/* The summary uses measured remaining CSS space, rather than stretching controls. */
+@media (min-height: 1360px) {
+  .slider-field { height: 34px; }
+  .slider-heading label { line-height: 18px; }
+  .slider-heading output { line-height: 16px; padding: 0 5px; }
+  .slider-field input { height: 14px; }
+}
+@container summary-space (min-height: 152px) {
+  .comparison-panel, .comparison-panel.summary-open { display: block; position: static; box-shadow: none; }
+  #closeSummary, .comparison-intro { display: none; }
+  .comparison-row { height: 36px; }
+}
+@container summary-space (min-height: 188px) {
+  .comparison-intro { display: block; }
+  .comparison-row { height: 43px; }
 }
