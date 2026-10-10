@@ -8,6 +8,19 @@ import { fitSensorViewport } from './layout.js';
 const $ = selector => document.querySelector(selector);
 const COLORS = ['#46d7cf', '#ffbe6f', '#92a7ff', '#f292bf'];
 const SLOT_NAMES = { front: '前摄', rear: '后摄', twelve: '12 点侧', three: '3 点侧', six: '6 点侧', nine: '9 点侧' };
+const PARAMETER_ICONS = {
+  raise: '<path d="M4 18h5l7-10M11 8h5v5"/><circle cx="5" cy="6" r="2"/>',
+  inward: '<path d="M3 12h18M7 8l-4 4 4 4M17 8l4 4-4 4M12 4v3m0 10v3"/>',
+  elbow: '<path d="M5 4v10l13 5"/><circle cx="5" cy="14" r="2"/><path d="M9 9a7 7 0 0 1 5 8"/>',
+  twist: '<path d="M8 5a8 8 0 1 1-4 7M4 4v5h5M12 8v8"/>',
+  wrist: '<path d="M4 19l7-7 8 2M11 12l2-7"/><circle cx="11" cy="12" r="2"/>',
+  flip: '<path d="M3 18h18M6 15l9-11 4 3-9 11M8 7a8 8 0 0 0-4 7"/>',
+  spin: '<rect x="8" y="8" width="8" height="8" rx="2"/><path d="M4 12a8 8 0 0 1 13-6M20 12a8 8 0 0 1-13 6M17 3v4h-4M7 21v-4h4"/>',
+  yaw: '<rect x="9" y="8" width="6" height="8" rx="2"/><path d="M3 12h4m10 0h4M5 9l-3 3 3 3M19 9l3 3-3 3"/>',
+  pitch: '<rect x="8" y="9" width="8" height="6" rx="2"/><path d="M12 3v4m0 10v4M9 5l3-3 3 3M9 19l3 3 3-3"/>',
+  roll: '<rect x="8" y="8" width="8" height="8" rx="2" transform="rotate(-15 12 12)"/><path d="M4 12a8 8 0 1 0 4-7M3 4v5h5"/>',
+  fov: '<circle cx="5" cy="12" r="2"/><path d="M7 11l13-7v16L7 13M14 7a8 8 0 0 1 0 10"/>'
+};
 const STORAGE_KEY = 'watch-camera-vision-v1';
 let state = defaultState(); let hasStorage = true;
 try { const saved = localStorage.getItem(STORAGE_KEY); if (saved) state = validateState(JSON.parse(saved)); } catch { hasStorage = false; }
@@ -25,10 +38,9 @@ function download(blob, filename) {
   const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = filename; document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 10000);
 }
 function slider(key, label, min, max, value, group) {
-  const icons = { raise: '↗', inward: '↔', elbow: '∠', twist: '⟳', wrist: '∠', flip: '↗', spin: '⟳', yaw: '↔', pitch: '↕', roll: '⟳', fov: '⋁' };
   const progress = (value - min) / (max - min) * 100;
   const zero = min < 0 && max > 0 ? `<i class="slider-zero" style="left:${-min / (max - min) * 100}%" aria-hidden="true" title="0° 基准"></i>` : '';
-  return `<div class="slider-field"><div class="slider-heading"><label for="${group}-${key}" title="${label} · 范围 ${min}°–${max}°"><span class="parameter-icon" aria-hidden="true">${icons[key]}</span>${label}</label><output id="${group}-${key}-value" for="${group}-${key}">${value}°</output></div><div class="slider-track">${zero}<input id="${group}-${key}" data-group="${group}" data-key="${key}" type="range" min="${min}" max="${max}" value="${value}" step="1" style="--progress:${progress}%" title="${label} · 范围 ${min}°–${max}°"></div></div>`;
+  return `<div class="slider-field parameter-${group}"><div class="slider-heading"><label for="${group}-${key}" title="${label} · 范围 ${min}°–${max}°"><span class="parameter-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" focusable="false">${PARAMETER_ICONS[key]}</svg></span><span class="parameter-label">${label}</span></label><output id="${group}-${key}-value" for="${group}-${key}">${value}°</output></div><div class="slider-track">${zero}<input id="${group}-${key}" data-group="${group}" data-key="${key}" type="range" min="${min}" max="${max}" value="${value}" step="1" style="--progress:${progress}%" title="${label} · 范围 ${min}°–${max}°"></div></div>`;
 }
 function renderUI() {
   const presetNames = { look: '抬腕看表', upright: '立起双摄', down: '自然下垂', forward: '向前拍摄' };
@@ -51,7 +63,13 @@ function syncUI() {
   document.querySelectorAll('[data-side]').forEach(b => b.classList.toggle('active', b.dataset.side === state.side));
   document.querySelectorAll('[data-preset]').forEach(b => b.classList.toggle('active', b.dataset.preset === state.preset));
   document.querySelectorAll('[data-flip]').forEach(b => b.classList.toggle('active', +b.dataset.flip === state.pose.flip));
-  document.querySelectorAll('[data-group="pose"]').forEach(input => { input.value = state.pose[input.dataset.key]; $(`#${input.id}-value`).textContent = `${input.value}°`; });
+  const selected = state.cameras[state.selected];
+  document.querySelectorAll('[data-roll], [data-fov]').forEach(button => {
+    const key = button.dataset.roll !== undefined ? 'roll' : 'fov';
+    const active = +button.dataset[key] === selected[key];
+    button.classList.toggle('active', active); button.setAttribute('aria-pressed', String(active));
+  });
+  document.querySelectorAll('input[data-group]').forEach(input => { input.value = (input.dataset.group === 'pose' ? state.pose : selected)[input.dataset.key]; $(`#${input.id}-value`).textContent = `${input.value}°`; });
   $('#poseReadout').textContent = PRESETS[state.preset]?.label || '自定义姿势';
   $('#flipReadout').textContent = `${state.pose.flip}°`;
   $('#cameraCount').textContent = `${state.cameras.filter(c => c.enabled).length} 路`;
@@ -222,11 +240,11 @@ function bindEvents() {
     if (button.dataset.side) { stopAnimation(); state.side = button.dataset.side; }
     else if (button.dataset.preset) { stopAnimation(); state.preset = button.dataset.preset; state.pose = { ...PRESETS[state.preset] }; }
     else if (button.dataset.flip !== undefined) { stopAnimation(); state.pose.flip = +button.dataset.flip; state.preset = 'custom'; }
-    else if (button.dataset.roll !== undefined) { state.cameras[state.selected].roll = +button.dataset.roll; renderEditor(); }
-    else if (button.dataset.fov) { state.cameras[state.selected].fov = +button.dataset.fov; renderEditor(); }
+    else if (button.dataset.roll !== undefined) { state.cameras[state.selected].roll = +button.dataset.roll; }
+    else if (button.dataset.fov) { state.cameras[state.selected].fov = +button.dataset.fov; }
     else if (button.dataset.view) { frameCamera(button.dataset.view); return; }
     else if (button.id === 'cameraDefault') { state.cameras[state.selected] = { ...DEFAULT_CAMERAS[state.selected] }; renderEditor(); }
-    else if (button.id === 'matchFov') { const fov = state.cameras[state.selected].fov; state.cameras.forEach(c => { c.fov = fov; }); renderEditor(); toast(`四路水平视场角已统一为 ${fov}°`); }
+    else if (button.id === 'matchFov') { const fov = state.cameras[state.selected].fov; state.cameras.forEach(c => { c.fov = fov; }); toast(`四路水平视场角已统一为 ${fov}°`); }
     else if (button.id === 'toggleSummary' || button.id === 'closeSummary') {
       if (button.id === 'toggleSummary' && getComputedStyle($('#comparisonPanel')).position === 'static' && getComputedStyle($('#comparisonPanel')).display !== 'none') { $('#matchFov').focus(); return; }
       const open = button.id === 'toggleSummary' && !$('#comparisonPanel').classList.contains('summary-open');

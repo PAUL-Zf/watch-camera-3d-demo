@@ -58,7 +58,7 @@ h2 { font-size: 12px; line-height: 16px; letter-spacing: .1px; }
 .pose-list button { padding: 2px; height: 28px; text-align: center; font-size: 12px; white-space: nowrap; }
 .pose-list button.active { border-color: #58a6a2; background: #eef9f7; color: #13746e; box-shadow: inset 0 -2px #58a6a233; }
 .sliders { display: flex; flex-direction: column; gap: 1px; }
-.slider-field { display: grid; grid-template-columns: 127px minmax(0, 1fr) 38px; gap: 8px; align-items: center; height: 22px; min-width: 0; }
+.slider-field { display: grid; grid-template-columns: 136px minmax(0, 1fr) 38px; gap: 8px; align-items: center; height: 22px; min-width: 0; }
 .slider-heading { display: contents; }
 .slider-heading label { grid-column: 1; grid-row: 1; font-size: 13px; line-height: 20px; color: #4c6276; white-space: nowrap; }
 .slider-heading output { grid-column: 3; grid-row: 1; text-align: center; font-size: 13px; line-height: 20px; font-weight: 600; color: #315663; font-variant-numeric: tabular-nums; white-space: nowrap; border-radius: 5px; background: #edf5f5; }
@@ -82,9 +82,10 @@ h2 { font-size: 12px; line-height: 16px; letter-spacing: .1px; }
 .select-row select { flex: 1; width: 0; min-width: 0; height: 26px; border: 1px solid var(--border); padding: 2px 6px; border-radius: 5px; background: #fafcfd; color: #33475b; font-size: 13px; }
 .enable-row { display: flex; align-items: center; gap: 4px; font-size: 12px; color: #506578; white-space: nowrap; margin: 0; }
 .enable-row input { accent-color: #238b87; margin: 0; width: 13px; height: 13px; }
-.camera-shortcuts { display: flex; gap: 8px; }
-.camera-shortcuts > .angle-shortcuts { flex: 1; }
-.camera-shortcuts button { font-size: 11px; }
+.camera-shortcuts { display: flex; flex-direction: column; gap: 5px; margin-top: 5px; }
+.camera-shortcuts > .angle-shortcuts { display: grid; grid-template-columns: 76px repeat(3, minmax(0, 1fr)); align-items: center; margin: 0; flex: none; }
+.camera-shortcuts button { font-size: 12px; }
+.camera-shortcuts .shortcut-caption { display: block; position: static; font-size: 12px; line-height: 18px; color: #597180; padding: 0; white-space: nowrap; }
 .camera-default { width: 100%; font-size: 12px; height: 24px; padding: 2px; margin-top: 4px; background: #f7f9fb; }
 .studio-panel, .camera-panel { min-width: 0; min-height: 0; display: flex; flex-direction: column; }
 .panel-top { flex: none; height: 44px; display: flex; align-items: center; justify-content: space-between; padding: 0 1px 6px; gap: 6px; min-width: 0; }
@@ -253,7 +254,7 @@ footer span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .pose-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .pose-list button { height: 28px; font-size: 13px; }
   .sliders { gap: 2px; }
-  .slider-field { height: 28px; grid-template-columns: 138px minmax(0, 1fr) 40px; }
+  .slider-field { height: 28px; grid-template-columns: 146px minmax(0, 1fr) 40px; }
   .slider-field input { height: 28px; }
   .slider-heading label, .slider-heading output, .field-label, .select-row, .select-row select { font-size: 14px; }
   .select-row, .select-row select { height: 32px; }
@@ -262,7 +263,7 @@ footer span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .angle-shortcuts { margin-top: 6px; }
   .angle-shortcuts button, .camera-default { height: 30px; }
   .camera-default { margin-top: 6px; }
-  .camera-shortcuts .angle-shortcuts { position: relative; padding-top: 16px; }
+  .camera-shortcuts .angle-shortcuts { padding-top: 0; }
   .shortcut-caption { display: block; position: absolute; top: 0; left: 1px; font-size: 11px; line-height: 14px; color: #82929f; }
 }
 @media (min-height: 1360px) {
@@ -427,4 +428,50 @@ footer span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 @container summary-space (min-height: 188px) {
   .comparison-intro { display: block; }
   .comparison-row { height: 43px; }
+}
+
+/* Small embossed icon tiles, with a consistent line-icon language. */
+.slider-field { --parameter-ink: #2c8b87; --parameter-tint: #eaf5f2; --parameter-edge: #d5e8e1; border-radius: 6px; transition: background .15s; }
+.watch-section .slider-field { --parameter-ink: #5b7798; --parameter-tint: #edf2f9; --parameter-edge: #dce5f0; }
+.parameter-camera { --parameter-ink: #6572ae; --parameter-tint: #f0f0fa; --parameter-edge: #e1e1f1; }
+.slider-heading label { gap: 6px; cursor: pointer; }
+.parameter-icon { width: 20px; height: 20px; padding: 2px; border-radius: 6px; color: var(--parameter-ink); border: 1px solid var(--parameter-edge); background: linear-gradient(145deg, #fff, var(--parameter-tint)); box-shadow: inset 0 1px 0 #fff, 0 1px 2px #243a4d09; transition: border-color .15s, box-shadow .15s; }
+.parameter-icon svg { width: 14px; height: 14px; display: block; }
+.parameter-label { color: #41566b; font-weight: 550; letter-spacing: .05px; }
+.slider-field:hover, .slider-field:focus-within { background: #f5f9fa; }
+.slider-field:hover .parameter-icon, .slider-field:focus-within .parameter-icon { border-color: var(--parameter-ink); box-shadow: inset 0 1px 0 #fff, 0 1px 4px #243a4d12; }
+.slider-field:focus-within .parameter-label { color: var(--parameter-ink); }
+.camera-shortcuts button { position: relative; border-radius: 6px; background: #f8fafb; transition: background .15s, border-color .15s, box-shadow .15s; }
+.camera-shortcuts button.active { background: linear-gradient(135deg, #eaf8f3, #dcefe9); border-color: #459b8f; color: #176c60; font-weight: 650; box-shadow: inset 0 1px 0 #ffffffb3, 0 1px 3px #2f75621a; }
+.camera-shortcuts button.active::after { content: ''; display: inline-block; vertical-align: middle; width: 4px; height: 4px; border-radius: 50%; margin-left: 4px; background: #218572; }
+@media (min-height: 900px) {
+  .parameter-icon { width: 22px; height: 22px; padding: 3px; }
+  .parameter-icon svg { width: 14px; height: 14px; }
+  .camera-shortcuts { gap: 6px; margin-top: 6px; }
+}
+@media (min-height: 1080px) {
+  .camera-shortcuts .shortcut-caption { font-size: 13px; }
+  .camera-shortcuts > .angle-shortcuts { grid-template-columns: 82px repeat(3, minmax(0, 1fr)); }
+}
+@media (max-height: 899px) {
+  .slider-field, .slider-field input { height: 20px; }
+  .pose-list button { height: 25px; }
+  .wrist-row, .segmented { height: 24px; }
+  .camera-shortcuts { gap: 4px; margin-top: 4px; }
+}
+@media (max-height: 620px) {
+  .slider-field, .slider-field input { height: 18px; }
+  .slider-heading label { line-height: 18px; }
+  .slider-heading output { line-height: 16px; }
+  .parameter-icon { width: 16px; height: 16px; padding: 1px; border-radius: 4px; }
+  .parameter-icon svg { width: 12px; height: 12px; }
+  .pose-list button { height: 20px; }
+  .camera-shortcuts { gap: 2px; margin-top: 2px; }
+}
+@media (prefers-reduced-motion: reduce) { .slider-field, .parameter-icon, .camera-shortcuts button { transition: none; } }
+@media (min-height: 900px) and (max-height: 1079px) {
+  .control-panel { gap: 6px; }
+}
+@media (min-height: 1360px) {
+  .slider-field { height: 38px; }
 }

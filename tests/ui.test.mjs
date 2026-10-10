@@ -186,3 +186,39 @@ test('summary opens and closes with focus return; slider progress follows preset
     assert.deepEqual(e.errors, []);
   } finally { e.close(); }
 });
+
+test('rotation and FOV shortcuts highlight exact values through edits, slot changes and reset', () => {
+  const e = setup(); try {
+    const selected = attr => [...e.doc.querySelectorAll(`[data-${attr}][aria-pressed="true"]`)].map(b => +b.dataset[attr]);
+    assert.deepEqual(selected('roll'), [0]); assert.deepEqual(selected('fov'), [90]);
+    const shortcut = e.doc.querySelector('[data-roll="90"]'); shortcut.focus(); shortcut.click();
+    assert.equal(e.doc.activeElement, shortcut); assert.equal(e.doc.querySelector('#camera-roll').value, '90');
+    assert.equal(shortcut.classList.contains('active'), true); assert.deepEqual(selected('roll'), [90]);
+    click(e, '[data-fov="120"]'); assert.deepEqual(selected('fov'), [120]);
+    assert.equal(e.doc.querySelector('#camera-fov-value').textContent, '120°');
+    slide(e, '#camera-roll', 37); slide(e, '#camera-fov', 83);
+    assert.deepEqual(selected('roll'), []); assert.deepEqual(selected('fov'), []);
+    slide(e, '#camera-roll', 180); slide(e, '#camera-fov', 60);
+    assert.deepEqual(selected('roll'), [180]); assert.deepEqual(selected('fov'), [60]);
+    click(e, '#cameraTabs [data-camera="1"]'); assert.deepEqual(selected('roll'), [0]); assert.deepEqual(selected('fov'), [90]);
+    click(e, '#cameraTabs [data-camera="0"]'); assert.deepEqual(selected('roll'), [180]); assert.deepEqual(selected('fov'), [60]);
+    change(e, '#cameraSurface', 'rear'); assert.deepEqual(selected('roll'), [0]);
+    click(e, '#cameraDefault'); assert.deepEqual(selected('roll'), [0]); assert.deepEqual(selected('fov'), [90]);
+    click(e, '[data-roll="90"]'); click(e, '[data-fov="120"]'); click(e, '#reset');
+    assert.deepEqual(selected('roll'), [0]); assert.deepEqual(selected('fov'), [90]); assert.deepEqual(e.errors, []);
+  } finally { e.close(); }
+});
+test('shortcut selection follows imported configuration and matching FOV across slots', async () => {
+  const e = setup(); try {
+    const config = e.w.watchVision.getState(); config.selected = 2; config.cameras[2].roll = 90; config.cameras[2].fov = 60;
+    const fileInput = e.doc.querySelector('#configFile');
+    Object.defineProperty(fileInput, 'files', { value: [{ size: 2000, text: async () => JSON.stringify(config) }] });
+    fileInput.dispatchEvent(new e.w.Event('change', { bubbles: true }));
+    await new Promise(resolve => e.w.setTimeout(resolve, 0));
+    assert.equal(e.doc.querySelector('[data-roll="90"]').getAttribute('aria-pressed'), 'true');
+    assert.equal(e.doc.querySelector('[data-fov="60"]').getAttribute('aria-pressed'), 'true');
+    click(e, '#matchFov'); click(e, '#cameraTabs [data-camera="3"]');
+    assert.equal(e.doc.querySelector('[data-fov="60"]').classList.contains('active'), true);
+    assert.equal(e.doc.querySelector('[data-roll="0"]').getAttribute('aria-pressed'), 'true'); assert.deepEqual(e.errors, []);
+  } finally { e.close(); }
+});
