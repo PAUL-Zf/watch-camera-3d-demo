@@ -12,13 +12,13 @@ const rendererDouble = `
 import * as Real from ${JSON.stringify(threePath)};
 export * from ${JSON.stringify(threePath)};
 export class WebGLRenderer {
- constructor(){this.domElement=document.createElement('canvas');this.viewport=new Real.Vector4();this.scissor=new Real.Vector4();this.target=null;this.scissorTest=false;window.__renders=0;}
+ constructor(){this.domElement=document.createElement('canvas');this.viewport=new Real.Vector4();this.scissor=new Real.Vector4();this.target=null;this.scissorTest=false;window.__renders=0;window.__viewports=[];}
  setPixelRatio(){} setSize(){} setClearColor(){} clear(){}
  setViewport(a,b,c,d){if(a?.isVector4)this.viewport.copy(a);else this.viewport.set(a,b,c,d);}
  setScissor(a,b,c,d){if(a?.isVector4)this.scissor.copy(a);else this.scissor.set(a,b,c,d);}
  getViewport(v){return v.copy(this.viewport);} getScissor(v){return v.copy(this.scissor);}
  setScissorTest(v){this.scissorTest=v;} getScissorTest(){return this.scissorTest;}
- render(){window.__renders++;} setRenderTarget(t){this.target=t;} getRenderTarget(){return this.target;}
+ render(scene,camera){window.__renders++;window.__viewports.push({width:this.viewport.z,height:this.viewport.w,aspect:camera.aspect});} setRenderTarget(t){this.target=t;} getRenderTarget(){return this.target;}
  readRenderTargetPixels(t,x,y,w,h,p){p.fill(128);}
 }`;
 const bundle = await build({ entryPoints: [fileURLToPath(new URL('../src/app.js', import.meta.url))], bundle: true, write: false, format: 'iife', plugins: [{ name: 'renderer-double', setup(builder) {
@@ -36,7 +36,9 @@ function setup(url = 'https://local-test.invalid/') {
   w.HTMLCanvasElement.prototype.getContext = () => ({ fillRect() {}, fillText() {}, putImageData() {}, createImageData: (width, height) => ({ data: new Uint8ClampedArray(width * height * 4) }) });
   w.HTMLCanvasElement.prototype.toBlob = cb => cb(new w.Blob(['mock'], { type: 'image/png' }));
   w.HTMLElement.prototype.getBoundingClientRect = function () {
-    const width = this.id === 'mainViewport' ? 600 : 180, height = this.id === 'mainViewport' ? 550 : 135;
+    let width = this.id === 'mainViewport' ? 600 : 180, height = this.id === 'mainViewport' ? 550 : 135;
+    if (this.classList.contains('feed-frame') && w.__frameSize) ({ width, height } = w.__frameSize);
+    if (this.classList.contains('camera-view')) { width = parseFloat(this.style.width) || 0; height = parseFloat(this.style.height) || 0; }
     return { x: 280, y: 100, left: 280, top: 100, right: 280 + width, bottom: 100 + height, width, height };
   };
   const errors = []; w.addEventListener('error', e => errors.push(e.message));
@@ -50,6 +52,23 @@ test('UI initializes four feeds and submits five view renders per frame', () => 
   const e = setup(); try {
     assert.equal(e.doc.querySelectorAll('.feed').length, 4); e.frame(1000);
     assert.equal(e.w.__renders, 5); assert.equal(e.doc.querySelector('#loading').style.display, 'none'); assert.deepEqual(e.errors, []);
+  } finally { e.close(); }
+});
+test('feed images fit both wide and tall cells at 4:3 and all controls stay present', () => {
+  const e = setup(); try {
+    assert.equal(e.doc.querySelectorAll('.control-section').length, 3);
+    assert.equal(e.doc.querySelectorAll('[data-group="pose"]').length, 7);
+    assert.equal(e.doc.querySelectorAll('[data-group="camera"]').length, 4);
+    let time = 0;
+    for (const [size, expected] of [[{ width: 600, height: 240 }, { width: 320, height: 240 }], [{ width: 160, height: 400 }, { width: 160, height: 120 }], [{ width: 300.5, height: 161.5 }, { width: 215, height: 161.25 }]]) {
+      e.w.__frameSize = size; e.w.__viewports.length = 0; e.frame(time += 1000);
+      const sensorViews = e.w.__viewports.slice(1); assert.equal(sensorViews.length, 4);
+      for (const viewport of sensorViews) {
+        assert.equal(viewport.width, expected.width); assert.equal(viewport.height, expected.height);
+        assert.equal(viewport.aspect, 4 / 3);
+      }
+    }
+    assert.deepEqual(e.errors, []);
   } finally { e.close(); }
 });
 test('preset, lift, left/right wrist and camera-edit events change the live scene state', () => {

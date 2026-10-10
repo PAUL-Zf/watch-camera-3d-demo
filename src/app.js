@@ -3,6 +3,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { SURFACES, PRESETS, DEFAULT_CAMERAS, updatePose, applyCameraConfig, cameraWorldPose } from './kinematics.js';
 import { defaultState, validateState, POSE_LIMITS } from './config.js';
 import { createWorld } from './scene.js';
+import { fitSensorViewport } from './layout.js';
 
 const $ = selector => document.querySelector(selector);
 const COLORS = ['#46d7cf', '#ffbe6f', '#92a7ff', '#f292bf'];
@@ -23,19 +24,19 @@ function download(blob, filename) {
   const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = filename; document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 10000);
 }
 function slider(key, label, min, max, value, group) {
-  return `<div class="slider-field"><div class="slider-heading"><label for="${group}-${key}">${label}</label><output id="${group}-${key}-value" for="${group}-${key}">${value}°</output></div><input id="${group}-${key}" data-group="${group}" data-key="${key}" type="range" min="${min}" max="${max}" value="${value}" step="1"><div class="slider-bounds"><span>${min}°</span><span>${max}°</span></div></div>`;
+  return `<div class="slider-field"><div class="slider-heading"><label for="${group}-${key}" title="${label} · 范围 ${min}°–${max}°">${label}</label><output id="${group}-${key}-value" for="${group}-${key}">${value}°</output></div><input id="${group}-${key}" data-group="${group}" data-key="${key}" type="range" min="${min}" max="${max}" value="${value}" step="1" title="${label} · 范围 ${min}°–${max}°"><div class="slider-bounds"><span>${min}°</span><span>${max}°</span></div></div>`;
 }
 function renderUI() {
   $('#poseList').innerHTML = Object.entries(PRESETS).map(([key, p]) => `<button data-preset="${key}" class="${state.preset === key ? 'active' : ''}">${p.label}</button>`).join('');
-  $('#poseSliders').innerHTML = [['raise', '肩部抬臂'], ['inward', '手臂水平内收 · 肩部'], ['elbow', '肘部弯曲'], ['twist', '前臂旋转'], ['wrist', '腕部弯曲']].map(([k, label]) => slider(k, label, ...POSE_LIMITS[k], state.pose[k], 'pose')).join('');
+  $('#poseSliders').innerHTML = [['raise', '肩部抬臂'], ['inward', '水平内收 · 肩部'], ['elbow', '肘部弯曲'], ['twist', '前臂旋转'], ['wrist', '腕部弯曲']].map(([k, label]) => slider(k, label, ...POSE_LIMITS[k], state.pose[k], 'pose')).join('');
   $('#watchSliders').innerHTML = [['flip', '表体立起角度'], ['spin', '底座连接件旋转']].map(([k, label]) => slider(k, label, ...POSE_LIMITS[k], state.pose[k], 'pose')).join('');
   $('#cameraTabs').innerHTML = state.cameras.map((c, i) => `<button data-camera="${i}" style="--cam-color:${COLORS[i]}" class="${i === state.selected ? 'active' : ''}">${c.name}</button>`).join('');
-  $('#feeds').innerHTML = state.cameras.map((c, i) => `<article class="feed ${i === state.selected ? 'selected' : ''} ${c.enabled ? '' : 'disabled'}" data-camera="${i}" style="--cam-color:${COLORS[i]}" tabindex="0" role="button" aria-label="配置摄像头 ${c.name}"><div class="feed-header"><span class="cam-letter">${c.name}</span><span class="feed-title" id="title-${i}">${SURFACES[c.surface].label}</span><span class="feed-selection">↗</span></div><div class="camera-view" id="viewport-${i}"><span class="feed-crosshair"></span><span class="feed-fov" id="fov-${i}">HFOV ${c.fov}°</span><div class="feed-disabled">镜头已关闭</div></div><div class="feed-bottom"><span id="details-${i}"></span><span class="visibility-status" id="status-${i}">正在分析视野…</span></div></article>`).join('');
+  $('#feeds').innerHTML = state.cameras.map((c, i) => `<article class="feed ${i === state.selected ? 'selected' : ''} ${c.enabled ? '' : 'disabled'}" data-camera="${i}" style="--cam-color:${COLORS[i]}" tabindex="0" role="button" aria-label="配置摄像头 ${c.name}"><div class="feed-header"><span class="cam-letter">${c.name}</span><span class="feed-title" id="title-${i}">${SURFACES[c.surface].label}</span><span class="feed-selection">↗</span></div><div class="feed-frame"><div class="camera-view" id="viewport-${i}"><span class="feed-crosshair"></span><span class="feed-fov" id="fov-${i}">HFOV ${c.fov}°</span><div class="feed-disabled">镜头已关闭</div></div></div><div class="feed-bottom"><span id="details-${i}"></span><span class="visibility-status" id="status-${i}">正在分析视野…</span></div></article>`).join('');
   renderEditor(); syncUI(); measure();
 }
 function renderEditor() {
   const c = state.cameras[state.selected];
-  $('#cameraEditor').innerHTML = `<label class="enable-row"><input id="cameraEnabled" type="checkbox" ${c.enabled ? 'checked' : ''}>启用摄像头 ${c.name}</label><label class="select-row">安装部件<select id="cameraAttach"><option value="body" ${c.attach === 'body' ? 'selected' : ''}>可翻转表体</option><option value="base" ${c.attach === 'base' ? 'selected' : ''}>腕上固定底座</option></select></label><label class="select-row">安装位置<select id="cameraSurface">${Object.entries(SURFACES).map(([key, surface]) => `<option value="${key}" ${key === c.surface ? 'selected' : ''}>${c.attach === 'base' && key === 'rear' ? '底座背面 · 朝皮肤' : surface.label}</option>`).join('')}</select></label>${slider('yaw', '水平偏转 · 相对安装面', -90, 90, c.yaw, 'camera')}${slider('pitch', '上下倾斜 · 相对安装面', -90, 90, c.pitch, 'camera')}${slider('roll', '画面旋转 · 传感器安装', -180, 180, c.roll, 'camera')}<div class="angle-shortcuts"><button data-roll="0">0°</button><button data-roll="90">90°</button><button data-roll="180">180°</button></div>${slider('fov', '水平视场角 HFOV', 40, 130, c.fov, 'camera')}<div class="angle-shortcuts"><button data-fov="60">窄 60°</button><button data-fov="90">中 90°</button><button data-fov="120">广 120°</button></div><button id="cameraDefault" class="camera-default">恢复此槽位的初始布局</button>`;
+  $('#cameraEditor').innerHTML = `<label class="enable-row"><input id="cameraEnabled" type="checkbox" ${c.enabled ? 'checked' : ''}>启用摄像头 ${c.name}</label><div class="camera-mount-fields"><label class="select-row">安装部件<select id="cameraAttach"><option value="body" ${c.attach === 'body' ? 'selected' : ''}>可翻转表体</option><option value="base" ${c.attach === 'base' ? 'selected' : ''}>腕上固定底座</option></select></label><label class="select-row">安装位置<select id="cameraSurface">${Object.entries(SURFACES).map(([key, surface]) => `<option value="${key}" ${key === c.surface ? 'selected' : ''}>${c.attach === 'base' && key === 'rear' ? '底座背面 · 朝皮肤' : surface.label}</option>`).join('')}</select></label></div><div class="sliders camera-sliders">${slider('yaw', '水平偏转', -90, 90, c.yaw, 'camera')}${slider('pitch', '上下倾斜', -90, 90, c.pitch, 'camera')}${slider('roll', '画面旋转 · 安装', -180, 180, c.roll, 'camera')}${slider('fov', '水平视场角 HFOV', 40, 130, c.fov, 'camera')}</div><div class="camera-shortcuts"><div class="angle-shortcuts" role="group" aria-label="画面旋转快捷角度"><button data-roll="0">0°</button><button data-roll="90">90°</button><button data-roll="180">180°</button></div><div class="angle-shortcuts" role="group" aria-label="水平视场角快捷角度"><button data-fov="60">窄 60°</button><button data-fov="90">中 90°</button><button data-fov="120">广 120°</button></div></div><button id="cameraDefault" class="camera-default">恢复此槽位的初始布局</button>`;
 }
 function syncUI() {
   document.querySelectorAll('[data-side]').forEach(b => b.classList.toggle('active', b.dataset.side === state.side));
@@ -49,8 +50,10 @@ function syncUI() {
   state.cameras.forEach((c, i) => {
     const label = c.attach === 'base' ? `底座 · ${SURFACES[c.surface].label.replace('表体背面 · 后摄', '背面').replace('屏幕面 · 前摄', '正面')}` : SURFACES[c.surface].label;
     $(`#title-${i}`).textContent = label;
+    $(`#title-${i}`).title = label;
     $(`#fov-${i}`).textContent = `HFOV ${c.fov}°`;
-    $(`#details-${i}`).textContent = `${c.attach === 'body' ? '活动表体' : '固定底座'} · 偏转 ${c.yaw}° / 倾斜 ${c.pitch}° / 旋转 ${c.roll}°`;
+    $(`#details-${i}`).textContent = `${c.attach === 'body' ? '活动表体' : '固定底座'} · ${c.yaw}° / ${c.pitch}° / ${c.roll}°`;
+    $(`#details-${i}`).title = `偏转 ${c.yaw}° / 倾斜 ${c.pitch}° / 画面旋转 ${c.roll}°`;
     const feed = $(`#viewport-${i}`).closest('.feed'); feed.classList.toggle('disabled', !c.enabled); feed.classList.toggle('selected', i === state.selected); feed.setAttribute('aria-pressed', String(i === state.selected));
   });
   document.querySelectorAll('[data-camera]').forEach(b => b.classList.toggle('active', +b.dataset.camera === state.selected));
@@ -88,7 +91,15 @@ function updateFrustum(i) {
 }
 function measure() {
   mainRect = $('#mainViewport').getBoundingClientRect();
-  feedRects = state.cameras.map((_, i) => $(`#viewport-${i}`)?.getBoundingClientRect());
+  feedRects = state.cameras.map((_, i) => {
+    const viewport = $(`#viewport-${i}`); if (!viewport) return;
+    const frame = viewport.parentElement.getBoundingClientRect();
+    const size = fitSensorViewport(frame.width, frame.height);
+    const width = `${size.width}px`, height = `${size.height}px`;
+    if (viewport.style.width !== width) viewport.style.width = width;
+    if (viewport.style.height !== height) viewport.style.height = height;
+    return viewport.getBoundingClientRect();
+  });
 }
 function resize() {
   if (!renderer) return;
@@ -127,7 +138,7 @@ function updateStatuses() {
   });
 }
 function renderView(camera, rect, main = false) {
-  if (!rect || rect.bottom <= 0 || rect.top >= innerHeight || rect.right <= 0 || rect.left >= innerWidth) return;
+  if (!rect || rect.width <= 0 || rect.height <= 0 || rect.bottom <= 0 || rect.top >= innerHeight || rect.right <= 0 || rect.left >= innerWidth) return;
   if (main) { camera.aspect = rect.width / rect.height; camera.updateProjectionMatrix(); }
   world.scene.background.set(main ? '#182f3d' : '#9bb2bf');
   renderer.setViewport(rect.left, innerHeight - rect.bottom, rect.width, rect.height);
