@@ -94,7 +94,7 @@ test('right wrist has the same physical dial and mirrored hand, without mirrorin
 test('v1 imports migrate missing articulation and environment fields without losing slot edits', () => {
   const old = defaultState(); old.schemaVersion = 1; delete old.environment; delete old.pose.deviation;
   old.preset = 'upright'; old.pose = { ...PRESETS.upright, spin: 0 }; old.cameras[3].yaw = 34;
-  const next = validateState(old); assert.equal(next.schemaVersion, 2); assert.equal(next.environment, 'calibration');
+  const next = validateState(old); assert.equal(next.schemaVersion, 3); assert.equal(next.environment, 'calibration');
   assert.equal(next.pose.deviation, 0); assert.equal(next.pose.spin, -90); assert.equal(next.cameras[3].yaw, 34);
   assert.throws(() => validateState({ ...next, environment: 'bad' }));
 });

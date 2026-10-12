@@ -16,8 +16,8 @@ export const PRESETS = {
   meal: { label: '餐桌食物取景', raise: 70, inward: 15, elbow: 45, twist: 90, wrist: 0, deviation: 0, flip: 0, spin: 0 },
   forward: { label: '抬臂向前', raise: 85, inward: 0, elbow: 5, twist: 0, wrist: 0, flip: 90, spin: -90 }
 };
-export function presetPose(key, side = 'left') {
-  const pose = { deviation: 0, ...PRESETS[key] };
+export function presetPose(key, side = 'left', wearDistance = 53) {
+  const pose = { deviation: 0, wearDistance, ...PRESETS[key] };
   if (side === 'right' && ['upright', 'forward'].includes(key)) pose.spin *= -1;
   return pose;
 }
@@ -29,6 +29,17 @@ export const DEFAULT_CAMERAS = [
 ];
 export function horizontalToVertical(hfov, aspect) {
   return THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan(hfov * RAD / 2) / aspect));
+}
+// Elliptical forearm cross-sections shared by the watch mount and strap fitting.
+export function forearmRadius(y) {
+  const profile = [[-.25, .029, .025], [-.247, .029, .025], [-.215, .032, .027], [-.12, .041, .035], [-.055, .043, .038]];
+  for (let i = 1; i < profile.length; i++) {
+    if (y <= profile[i][0]) {
+      const a = profile[i - 1], b = profile[i], t = THREE.MathUtils.clamp((y - a[0]) / (b[0] - a[0]), 0, 1);
+      return { x: THREE.MathUtils.lerp(a[1], b[1], t), z: THREE.MathUtils.lerp(a[2], b[2], t) };
+    }
+  }
+  return { x: .043, z: .038 };
 }
 export function createRig() {
   const root = new THREE.Group(); root.name = 'wearer';
@@ -60,6 +71,10 @@ export function updatePose(rig, pose, side = 'left', swing = 0) {
   rig.wrist.rotation.set(pose.wrist * RAD * .65, 0, (pose.deviation ?? 0) * sign * RAD * .65);
   rig.hand.rotation.set(pose.wrist * RAD * .35, 0, (pose.deviation ?? 0) * sign * RAD * .35);
   rig.hand.scale.x = sign;
+  const wearDistance = pose.wearDistance ?? 53, mountY = -.27 + wearDistance / 1000;
+  const radius = forearmRadius(mountY);
+  rig.mount.position.set(0, mountY, radius.z + .009);
+  rig.updateStrap?.(wearDistance, mountY);
   rig.mount.rotation.set(Math.PI / 2, sign * Math.PI / 2, 0);
   rig.swivel.rotation.y = pose.spin * RAD;
   rig.hinge.rotation.x = -pose.flip * RAD;

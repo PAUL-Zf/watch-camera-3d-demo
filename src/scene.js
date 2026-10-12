@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { createRig, updatePose } from './kinematics.js';
+import { createRig, updatePose, forearmRadius } from './kinematics.js';
 import { createAvatar } from './avatar.js';
 import { createMealScene } from './meal.js';
 
@@ -49,6 +49,19 @@ export function createWorld() {
   }
   const bandGeometry = new THREE.BufferGeometry(); bandGeometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3)); bandGeometry.setIndex(indices); bandGeometry.computeVertexNormals();
   const strap = addMesh(rig.forearm, bandGeometry, strapMat); strap.name = 'fitted-forearm-strap'; strap.userData.region = 'watch';
+  let fittedDistance;
+  rig.updateStrap = (distance, centreY) => {
+    if (distance === fittedDistance) return; fittedDistance = distance;
+    const attr = bandGeometry.attributes.position;
+    for (let j = 0; j <= n; j++) {
+      const angle = j / n * Math.PI * 2;
+      for (let k = 0; k < 4; k++) {
+        const y = centreY + (k < 2 ? -.010 : .010), radius = forearmRadius(y), gap = k === 0 || k === 3 ? .0008 : .004;
+        attr.setXYZ(j * 4 + k, Math.sin(angle) * (radius.x + gap), y, Math.cos(angle) * (radius.z + gap));
+      }
+    }
+    attr.needsUpdate = true; bandGeometry.computeVertexNormals(); bandGeometry.computeBoundingBox(); bandGeometry.computeBoundingSphere();
+  };
   addMesh(rig.mount, new RoundedBoxGeometry(.052, .009, .065, 3, .002), carrier, [0, 0, 0]);
   addMesh(rig.swivel, new THREE.CylinderGeometry(.014, .014, .003, 24), material('#7c989e'), [0, .006, -.023]);
   const axle = addMesh(rig.hinge, new THREE.CylinderGeometry(.003, .003, .046, 16), material('#93aeb6')); axle.rotation.z = Math.PI / 2;

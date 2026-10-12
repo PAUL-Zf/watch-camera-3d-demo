@@ -13,7 +13,7 @@
   <div class="app">
     <header class="topbar">
       <div class="brand"><span class="brand-mark">W<span>•</span></span><div><strong>WATCH <span>/</span> VISION</strong><small>手表摄像头 · 视野实验室</small></div></div>
-      <div class="top-meta"><span class="offline"><i></i> 本地离线</span><span class="version">CONCEPT DEMO · V0.2.0</span></div>
+      <div class="top-meta"><span class="offline"><i></i> 本地离线</span><span class="version">CONCEPT DEMO · V0.2.1</span></div>
       <div class="top-actions"><button id="exportConfig">导出配置</button><button id="importConfig">导入配置</button><button id="reset" class="dark-button">重置实验</button><input id="configFile" type="file" accept="application/json,.json" hidden></div>
     </header>
     <main class="workspace">
@@ -27,14 +27,14 @@
         <div id="poseSliders" class="sliders"></div>
         </section>
         <section class="control-section watch-section">
-        <div class="section-heading"><span class="step">02</span><h2>活动表体</h2><details class="section-help"><summary aria-label="活动表体说明">?</summary><p>底座留在手腕，表体绕轴立起。翻转轴位于 6 点钟侧，12 点钟侧向上抬起；旋转底座连接件可改变翻转方向。角度用于概念观察，不代表实机机械限位。</p></details></div>
-        <p class="section-description">以 6 点钟侧为轴，向上立起表体</p>
+        <div class="section-heading"><span class="step">02</span><h2>活动表体</h2><details class="section-help"><summary aria-label="活动表体说明">?</summary><p>佩戴距离表示表体中心距腕关节的距离，单位毫米，增大时向肘部移动；表带随前臂粗细贴合。底座固定于前臂，表体绕轴立起。翻转轴位于 6 点钟侧，12 点钟侧向上抬起；旋转底座连接件可改变翻转方向。角度用于概念观察，不代表实机机械限位。</p></details></div>
+        <p class="section-description">先调佩戴位置，再调整表体结构</p>
         <div id="watchSliders" class="sliders"></div>
         <div class="angle-shortcuts"><button data-flip="0">平放 0°</button><button data-flip="45">45°</button><button data-flip="90">立起 90°</button></div>
         </section>
         <section class="control-section camera-section">
         <div class="section-heading camera-heading"><span class="step">03</span><h2>摄像头配置</h2><label class="enable-row"><input id="cameraEnabled" type="checkbox" checked>启用</label></div>
-        <p class="section-description">选择彩色槽位，比较对应画面</p>
+        <p class="section-description">选中槽位即为快速取景的主摄</p>
         <div id="cameraTabs" class="camera-tabs" role="group" aria-label="选择摄像头槽位"></div>
         <div id="cameraEditor"></div>
         </section>

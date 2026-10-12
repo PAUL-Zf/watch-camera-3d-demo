@@ -5,11 +5,13 @@ import { defaultState, validateState, POSE_LIMITS } from './config.js';
 import { createWorld } from './scene.js';
 import { fitSensorViewport } from './layout.js';
 import { sensorMeshes, sampleNearOcclusion } from './occlusion.js';
+import { fitMealToCamera } from './framing.js';
 
 const $ = selector => document.querySelector(selector);
 const COLORS = ['#46d7cf', '#ffbe6f', '#92a7ff', '#f292bf'];
 const SLOT_NAMES = { front: '前摄', rear: '后摄', twelve: '12 点侧', three: '3 点侧', six: '6 点侧', nine: '9 点侧' };
 const PARAMETER_ICONS = {
+  wearDistance: '<rect x="8" y="8" width="8" height="8" rx="2"/><path d="M12 2v4m0 12v4M9 4l3-3 3 3M9 20l3 3 3-3"/>',
   raise: '<path d="M4 18h5l7-10M11 8h5v5"/><circle cx="5" cy="6" r="2"/>',
   inward: '<path d="M3 12h18M7 8l-4 4 4 4M17 8l4 4-4 4M12 4v3m0 10v3"/>',
   elbow: '<path d="M5 4v10l13 5"/><circle cx="5" cy="14" r="2"/><path d="M9 9a7 7 0 0 1 5 8"/>',
@@ -25,7 +27,7 @@ const PARAMETER_ICONS = {
 };
 const STORAGE_KEY = 'watch-camera-vision-v1';
 let state = defaultState(); let hasStorage = true;
-try { const saved = localStorage.getItem(STORAGE_KEY); if (saved) state = validateState(JSON.parse(saved)); } catch { hasStorage = false; }
+try { const saved = localStorage.getItem(STORAGE_KEY); if (saved) { const input = JSON.parse(saved); state = validateState(input); if (input.schemaVersion < 3) state.environment = 'meal'; } } catch { hasStorage = false; }
 let renderer, world, observer, orbit;
 let cameras = [], frustums = [], markers = [], feedRects = [], mainRect;
 let animation = false, animationStart = 0, lastSwing = 0, lastFrame = 0, lastStatus = 0, frames = 0, lastFPS = 0;
@@ -40,15 +42,16 @@ function download(blob, filename) {
   const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = filename; document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 10000);
 }
 function slider(key, label, min, max, value, group) {
+  const unit = key === 'wearDistance' ? 'mm' : '°';
   const progress = (value - min) / (max - min) * 100;
   const zero = min < 0 && max > 0 ? `<i class="slider-zero" style="left:${-min / (max - min) * 100}%" aria-hidden="true" title="0° 基准"></i>` : '';
-  return `<div class="slider-field parameter-${group}"><div class="slider-heading"><label for="${group}-${key}" title="${label} · 范围 ${min}°–${max}°"><span class="parameter-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" focusable="false">${PARAMETER_ICONS[key]}</svg></span><span class="parameter-label">${label}</span></label><output id="${group}-${key}-value" for="${group}-${key}">${value}°</output></div><div class="slider-track">${zero}<input id="${group}-${key}" data-group="${group}" data-key="${key}" type="range" min="${min}" max="${max}" value="${value}" step="1" style="--progress:${progress}%" title="${label} · 范围 ${min}°–${max}°"></div></div>`;
+  return `<div class="slider-field parameter-${group}"><div class="slider-heading"><label for="${group}-${key}" title="${label} · 范围 ${min}${unit}–${max}${unit}"><span class="parameter-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" focusable="false">${PARAMETER_ICONS[key]}</svg></span><span class="parameter-label">${label}</span></label><output id="${group}-${key}-value" for="${group}-${key}">${value}${unit}</output></div><div class="slider-track">${zero}<input id="${group}-${key}" data-group="${group}" data-key="${key}" data-unit="${unit}" type="range" min="${min}" max="${max}" value="${value}" step="1" style="--progress:${progress}%" title="${label} · 范围 ${min}${unit}–${max}${unit}"></div></div>`;
 }
 function renderUI() {
   const presetNames = { look: '抬腕看表', upright: '立起双摄', down: '自然下垂', forward: '向前拍摄', meal: '食物取景' };
   $('#poseList').innerHTML = Object.entries(PRESETS).map(([key, p]) => `<button data-preset="${key}" title="${p.label}" aria-label="${p.label}" class="${state.preset === key ? 'active' : ''}">${presetNames[key]}</button>`).join('');
   $('#poseSliders').innerHTML = [['raise', '肩部抬臂'], ['inward', '水平内收 · 肩部'], ['elbow', '肘部弯曲'], ['twist', '前臂旋转'], ['wrist', '腕部屈伸 · 正值掌屈'], ['deviation', '腕部侧偏 · 正值拇指侧']].map(([k, label]) => slider(k, label, ...POSE_LIMITS[k], state.pose[k], 'pose')).join('');
-  $('#watchSliders').innerHTML = [['flip', '表体立起角度'], ['spin', '底座连接件旋转']].map(([k, label]) => slider(k, label, ...POSE_LIMITS[k], state.pose[k], 'pose')).join('');
+  $('#watchSliders').innerHTML = [['wearDistance', '佩戴距腕关节 · 越大越靠肘'], ['flip', '表体立起角度'], ['spin', '底座连接件旋转']].map(([k, label]) => slider(k, label, ...POSE_LIMITS[k], state.pose[k], 'pose')).join('');
   $('#cameraTabs').innerHTML = state.cameras.map((c, i) => `<button data-camera="${i}" aria-label="配置摄像头 ${c.name}" style="--cam-color:${COLORS[i]}" class="${i === state.selected ? 'active' : ''}"><span class="slot-letter"><i aria-hidden="true"></i>${c.name}</span><small class="slot-surface">${SLOT_NAMES[c.surface]}</small></button>`).join('');
   $('#feeds').innerHTML = state.cameras.map((c, i) => `<article class="feed ${i === state.selected ? 'selected' : ''} ${c.enabled ? '' : 'disabled'}" data-camera="${i}" style="--cam-color:${COLORS[i]}" tabindex="0" role="button" aria-label="配置摄像头 ${c.name}"><div class="feed-header"><span class="cam-letter">${c.name}</span><span class="feed-title" id="title-${i}">${SURFACES[c.surface].label}</span><span class="feed-selection">↗</span></div><div class="feed-frame"><div class="camera-view" id="viewport-${i}"><span class="feed-crosshair"></span><span class="feed-fov" id="fov-${i}">HFOV ${c.fov}°</span><div class="feed-disabled">镜头已关闭</div></div></div><div class="feed-bottom"><span id="details-${i}"></span><span class="visibility-status" id="status-${i}">正在分析视野…</span></div></article>`).join('');
   $('#comparisonRows').innerHTML = state.cameras.map((c, i) => `<button data-camera="${i}" aria-label="配置摄像头 ${c.name}" class="comparison-row" style="--cam-color:${COLORS[i]}"><span class="summary-letter">${c.name}</span><span class="summary-mount"><span></span><small></small></span><span class="summary-fov"><span></span><small></small></span></button>`).join('');
@@ -71,7 +74,9 @@ function syncUI() {
     const active = +button.dataset[key] === selected[key];
     button.classList.toggle('active', active); button.setAttribute('aria-pressed', String(active));
   });
-  document.querySelectorAll('input[data-group]').forEach(input => { input.value = (input.dataset.group === 'pose' ? state.pose : selected)[input.dataset.key]; $(`#${input.id}-value`).textContent = `${input.value}°`; });
+  document.querySelectorAll('input[data-group]').forEach(input => { input.value = (input.dataset.group === 'pose' ? state.pose : selected)[input.dataset.key]; $(`#${input.id}-value`).textContent = `${input.value}${input.dataset.unit || '°'}`; });
+  const foodButton = document.querySelector('[data-preset="meal"]');
+  foodButton.textContent = `食物取景 · ${selected.name}`; foodButton.title = `以主摄 ${selected.name}（${SURFACES[selected.surface].label}）为基准，自动调整姿势并检查餐盘范围与遮挡；保留安装、镜头角度及佩戴位置`;
   $('#environment').value = state.environment;
   $('#poseReadout').textContent = PRESETS[state.preset]?.label || '自定义姿势';
   $('#flipReadout').textContent = `${state.pose.flip}°`;
@@ -97,16 +102,28 @@ function syncUI() {
   });
   document.querySelectorAll('[data-camera]').forEach(b => b.classList.toggle('active', +b.dataset.camera === state.selected));
   document.querySelectorAll('.feed-key span').forEach((el, i) => { el.lastChild.textContent = ` ${state.cameras[i].name} ${SURFACES[state.cameras[i].surface].label}`; });
-  const baseLabel = state.environment === 'meal' ? '餐桌用于验证食物取景与手部遮挡：可选“食物取景”姿势；镜头位置、偏转和视场角仍可自由调整。当前不计算卡路里。' : state.pose.flip === 0 ? '可用“手臂水平内收”把手腕带到身体前方。表体平放：表背镜头通常被底座挡住。选择“抬腕立起”，观察后摄如何转向环境。' : '表体已立起：前后摄朝向随翻转变化。镜头是否看向正前方，还取决于手臂姿势和转腕角度。';
+  const baseLabel = state.environment === 'meal' ? '选中 A/B/C/D 后点击“食物取景”，以该主摄自动调整姿势。佩戴距离越大越靠近肘部；快速取景会保留此距离与镜头参数。当前不计算卡路里。' : state.pose.flip === 0 ? '可用“手臂水平内收”把手腕带到身体前方。表体平放：表背镜头通常被底座挡住。选择“抬腕立起”，观察后摄如何转向环境。' : '表体已立起：前后摄朝向随翻转变化。镜头是否看向正前方，还取决于手臂姿势和转腕角度。';
   $('#hint').textContent = state.showBody ? baseLabel : '人体已隐藏，相关遮挡也已移除；此状态用于排查镜头方向，不代表真实佩戴视野。';
   document.querySelectorAll('input[type="range"]').forEach(input => {
     input.style.setProperty('--progress', `${(+input.value - +input.min) / (+input.max - +input.min) * 100}%`);
-    input.setAttribute('aria-valuetext', `${input.value} 度`);
+    input.setAttribute('aria-valuetext', `${input.value} ${input.dataset.unit === 'mm' ? '毫米' : '度'}`);
   });
   $('#matchFov').textContent = `统一四路视场角 · ${state.cameras[state.selected].fov}°`;
 }
 function selectCamera(i) {
   state.selected = i; renderEditor(); syncUI(); applyState(); saveState();
+}
+function quickFrameMeal() {
+  stopAnimation(); state.environment = 'meal';
+  if (!world) { toast('快速取景需要先启动 WebGL 场景'); return; }
+  applyState();
+  const config = state.cameras[state.selected];
+  const result = fitMealToCamera(world, config, state.pose, state.side);
+  if (config.enabled && !(config.attach === 'base' && config.surface === 'rear')) {
+    state.pose = result.pose; state.preset = 'meal';
+  }
+  frameCamera('meal');
+  toast(`主摄 ${config.name} · ${result.framed ? '取景完成，餐盘范围 4/4' : result.reason}`);
 }
 function applyState(swing = 0) {
   if (!world) return;
@@ -234,7 +251,7 @@ function capture() {
       const image = ctx.createImageData(width, height); for (let row = 0; row < height; row++) image.data.set(pixels.subarray((height - row - 1) * width * 4, (height - row) * width * 4), row * width * 4);
       ctx.putImageData(image, x, y + header);
     });
-    ctx.fillStyle = '#bbcfd6'; ctx.font = '18px sans-serif'; ctx.fillText(`${state.side === 'left' ? '左腕' : '右腕'} | 内收 ${state.pose.inward}° | 表体立起 ${state.pose.flip}° | ${PRESETS[state.preset]?.label || '自定义姿势'} | 水平视场角 ${state.cameras.map(c => c.fov + '°').join(' / ')}`, 20, canvas.height - 38);
+    ctx.fillStyle = '#bbcfd6'; ctx.font = '18px sans-serif'; ctx.fillText(`${state.side === 'left' ? '左腕' : '右腕'} | 佩戴距离 ${state.pose.wearDistance} mm | 内收 ${state.pose.inward}° | 表体立起 ${state.pose.flip}° | ${PRESETS[state.preset]?.label || '自定义姿势'} | 水平视场角 ${state.cameras.map(c => c.fov + '°').join(' / ')}`, 20, canvas.height - 38);
     ctx.font = '14px sans-serif'; ctx.fillStyle = '#8ca6b2'; ctx.fillText('WATCH / VISION · 概念视野模拟，非实机成像效果', 20, canvas.height - 14);
     canvas.toBlob(blob => { if (blob) { download(blob, 'watch-camera-comparison.png'); toast('四路对比图已生成'); } }, 'image/png');
   } finally {
@@ -247,8 +264,9 @@ function bindEvents() {
     if (card) { selectCamera(+card.dataset.camera); return; }
     if (!button) return;
     if (button.dataset.camera !== undefined) { selectCamera(+button.dataset.camera); return; }
-    if (button.dataset.side) { stopAnimation(); state.side = button.dataset.side; if (state.preset !== 'custom') state.pose = presetPose(state.preset, state.side); }
-    else if (button.dataset.preset) { stopAnimation(); state.preset = button.dataset.preset; state.pose = presetPose(state.preset, state.side); if (state.preset === 'meal') { state.environment = 'meal'; frameCamera('meal'); } }
+    if (button.dataset.side) { stopAnimation(); state.side = button.dataset.side; if (state.preset === 'meal') quickFrameMeal(); else if (state.preset !== 'custom') state.pose = presetPose(state.preset, state.side, state.pose.wearDistance); }
+    else if (button.dataset.preset === 'meal') { quickFrameMeal(); }
+    else if (button.dataset.preset) { stopAnimation(); state.preset = button.dataset.preset; state.pose = presetPose(state.preset, state.side, state.pose.wearDistance); }
     else if (button.dataset.flip !== undefined) { stopAnimation(); state.pose.flip = +button.dataset.flip; state.preset = 'custom'; }
     else if (button.dataset.roll !== undefined) { state.cameras[state.selected].roll = +button.dataset.roll; }
     else if (button.dataset.fov) { state.cameras[state.selected].fov = +button.dataset.fov; }
@@ -261,7 +279,7 @@ function bindEvents() {
       $('#comparisonPanel').classList.toggle('summary-open', open); $('#toggleSummary').setAttribute('aria-expanded', String(open));
       if (open) $('#closeSummary').focus(); else $('#toggleSummary').focus(); return;
     }
-    else if (button.id === 'reset') { stopAnimation(); state = defaultState(); renderUI(); frameCamera('full'); toast('已恢复初始姿势与四路布局'); }
+    else if (button.id === 'reset') { stopAnimation(); state = defaultState(); renderUI(); frameCamera('meal'); toast('已恢复初始姿势与四路布局'); }
     else if (button.id === 'animate') { toggleAnimation(); return; }
     else if (button.id === 'exportConfig') { download(new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' }), 'watch-camera-config.json'); return; }
     else if (button.id === 'importConfig') { $('#configFile').click(); return; }
@@ -279,7 +297,7 @@ function bindEvents() {
   });
   document.addEventListener('input', event => {
     const input = event.target; if (!input.dataset.group) return;
-    $(`#${input.id}-value`).textContent = `${input.value}°`;
+    $(`#${input.id}-value`).textContent = `${input.value}${input.dataset.unit || '°'}`;
     if (input.dataset.group === 'pose') { stopAnimation(); state.pose[input.dataset.key] = +input.value; state.preset = 'custom'; }
     else state.cameras[state.selected][input.dataset.key] = +input.value;
     syncUI(); applyState(); saveState();
@@ -321,11 +339,11 @@ function initialize() {
       const marker = new THREE.Mesh(new THREE.SphereGeometry(.0035, 12, 8), new THREE.MeshBasicMaterial({ color: COLORS[i] })); marker.layers.set(1); world.rig.body.add(marker); markers.push(marker);
       return camera;
     });
-    applyState(); frameCamera('full'); resize(); $('#loading').style.display = 'none';
+    applyState(); frameCamera(state.environment === 'meal' ? 'meal' : 'full'); resize(); $('#loading').style.display = 'none';
     renderer.domElement.addEventListener('webglcontextlost', event => { event.preventDefault(); $('#loading').style.display = 'flex'; $('#loading').textContent = '3D 图形上下文已丢失，请重新打开页面。'; });
     requestAnimationFrame(renderFrame);
     // A read-only diagnostic API for development; geometry is the same as the visible simulator.
-    window.watchVision = { getState: () => JSON.parse(JSON.stringify(state)), occlusion: () => cameras.map(c => sampleNearOcclusion(c, sensorMeshes(world.scene, c))), cameraPoses: () => cameras.map(camera => { const p = cameraWorldPose(camera); return { position: p.position.toArray(), direction: p.direction.toArray(), up: p.up.toArray() }; }), setPreset: key => { if (!Object.hasOwn(PRESETS, key)) return; state.preset = key; state.pose = presetPose(key, state.side); if (key === 'meal') { state.environment = 'meal'; frameCamera('meal'); } syncUI(); applyState(); saveState(); } };
+    window.watchVision = { getState: () => JSON.parse(JSON.stringify(state)), occlusion: () => cameras.map(c => sampleNearOcclusion(c, sensorMeshes(world.scene, c))), cameraPoses: () => cameras.map(camera => { const p = cameraWorldPose(camera); return { position: p.position.toArray(), direction: p.direction.toArray(), up: p.up.toArray() }; }), setPreset: key => { if (!Object.hasOwn(PRESETS, key)) return; if (key === 'meal') quickFrameMeal(); else { state.preset = key; state.pose = presetPose(key, state.side, state.pose.wearDistance); } syncUI(); applyState(); saveState(); } };
   } catch (error) {
     $('#loading').textContent = '无法启动 3D 场景。请使用支持 WebGL 2 的新版 Chrome / Edge，并启用浏览器硬件加速。';
     console.error(error); toast('3D 初始化失败，详见浏览器控制台');

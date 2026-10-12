@@ -57,7 +57,7 @@ test('UI initializes four feeds and submits five view renders per frame', () => 
 test('feed images fit both wide and tall cells at 4:3 and all controls stay present', () => {
   const e = setup(); try {
     assert.equal(e.doc.querySelectorAll('.control-section').length, 3);
-    assert.equal(e.doc.querySelectorAll('[data-group="pose"]').length, 8);
+    assert.equal(e.doc.querySelectorAll('[data-group="pose"]').length, 9);
     assert.equal(e.doc.querySelectorAll('[data-group="camera"]').length, 4);
     let time = 0;
     for (const [size, expected] of [[{ width: 600, height: 240 }, { width: 320, height: 240 }], [{ width: 160, height: 400 }, { width: 160, height: 120 }], [{ width: 300.5, height: 161.5 }, { width: 215, height: 161.25 }]]) {
@@ -228,7 +228,7 @@ test('scene selector, food preset, articulation and config export preserve indep
     const original = JSON.stringify(e.w.watchVision.getState().cameras);
     change(e, '#environment', 'meal'); assert.equal(e.w.watchVision.getState().environment, 'meal');
     assert.equal(e.w.watchVision.getState().preset, 'look');
-    click(e, '[data-preset="meal"]'); assert.equal(e.w.watchVision.getState().pose.twist, 90);
+    click(e, '[data-preset="meal"]'); assert.equal(e.w.watchVision.getState().preset, 'meal'); assert.match(e.doc.querySelector('#toast').textContent, /主摄 A.*取景完成/);
     slide(e, '#pose-wrist', -50); slide(e, '#pose-deviation', 20);
     assert.equal(e.w.watchVision.getState().pose.wrist, -50); assert.equal(e.w.watchVision.getState().pose.deviation, 20);
     assert.equal(JSON.stringify(e.w.watchVision.getState().cameras), original);
@@ -237,7 +237,7 @@ test('scene selector, food preset, articulation and config export preserve indep
     change(e, '#environment', 'calibration'); assert.equal(e.w.watchVision.getState().pose.wrist, -50);
     assert.equal(JSON.parse(e.w.localStorage.getItem('watch-camera-vision-v1')).environment, 'calibration');
     click(e, '#reset'); assert.equal(e.w.watchVision.getState().pose.deviation, 0);
-    assert.equal(e.doc.querySelector('#environment').value, 'calibration'); assert.deepEqual(e.errors, []);
+    assert.equal(e.doc.querySelector('#environment').value, 'meal'); assert.deepEqual(e.errors, []);
   } finally { e.close(); }
 });
 
@@ -249,4 +249,24 @@ test('right wrist raised preset retains upright rear direction after automatic c
     click(e, '[data-side="left"]'); assert.equal(e.w.watchVision.getState().pose.spin, -90);
     assert.deepEqual(e.errors, []);
   } finally { e.close(); }
+});
+
+test('selected main lens drives quick framing, keeps its full config and wearing distance, and defaults to the food scene', () => {
+  const e=setup();try {
+    assert.equal(e.w.watchVision.getState().environment,'meal');
+    slide(e,'#pose-wearDistance',85);assert.equal(e.doc.querySelector('#pose-wearDistance-value').textContent,'85mm');
+    click(e,'[data-preset="down"]');assert.equal(e.w.watchVision.getState().pose.wearDistance,85);
+    click(e,'#cameraTabs [data-camera="3"]');assert.match(e.doc.querySelector('[data-preset="meal"]').textContent,/D/);
+    const before=JSON.stringify(e.w.watchVision.getState().cameras);
+    click(e,'[data-preset="meal"]');const state=e.w.watchVision.getState();
+    assert.equal(state.selected,3);assert.equal(state.pose.wearDistance,85);assert.equal(JSON.stringify(state.cameras),before);
+    assert.match(e.doc.querySelector('#toast').textContent,/主摄 D.*取景完成/);e.frame(1000);
+    assert.match(e.doc.querySelector('#status-3').textContent,/餐盘范围 4\/4/);
+    click(e,'[data-side="right"]'); assert.equal(e.w.watchVision.getState().pose.wearDistance,85); assert.match(e.doc.querySelector('#toast').textContent,/主摄 D.*取景完成/);
+    click(e,'#cameraTabs [data-camera="1"]');change(e,'#cameraAttach','base');const pose=JSON.stringify(e.w.watchVision.getState().pose);
+    click(e,'[data-preset="meal"]');assert.match(e.doc.querySelector('#toast').textContent,/朝向皮肤/);
+    assert.equal(JSON.stringify(e.w.watchVision.getState().pose),pose);
+    const stored=JSON.parse(e.w.localStorage.getItem('watch-camera-vision-v1'));assert.equal(stored.pose.wearDistance,85);
+    assert.deepEqual(e.errors,[]);
+  }finally{e.close();}
 });
