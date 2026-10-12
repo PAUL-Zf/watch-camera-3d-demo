@@ -78,7 +78,7 @@ function syncUI() {
   });
   document.querySelectorAll('input[data-group]').forEach(input => { input.value = (input.dataset.group === 'pose' ? state.pose : selected)[input.dataset.key]; $(`#${input.id}-value`).textContent = `${input.value}${input.dataset.unit || '°'}`; });
   const foodButton = document.querySelector('[data-preset="meal"]');
-  foodButton.textContent = `食物取景 · ${selected.name}`; foodButton.title = `以主摄 ${selected.name}（${SURFACES[selected.surface].label}）为基准，自动调整姿势并检查餐盘范围与遮挡；保留安装、镜头角度及佩戴位置`;
+  foodButton.textContent = `食物取景 · ${selected.name}`; foodButton.title = `以主摄 ${selected.name}（${SURFACES[selected.surface].label}）为基准，按当前结构调整人体姿势并检查餐盘范围与遮挡；保留佩戴距离和旋转，表体后摄仅自动立起到90°`;
   $('#environment').value = state.environment;
   $('#poseReadout').textContent = PRESETS[state.preset]?.label || '自定义姿势';
   $('#flipReadout').textContent = `${state.pose.flip}°`;
@@ -104,7 +104,7 @@ function syncUI() {
   });
   document.querySelectorAll('[data-camera]').forEach(b => b.classList.toggle('active', +b.dataset.camera === state.selected));
   document.querySelectorAll('.feed-key span').forEach((el, i) => { el.lastChild.textContent = ` ${state.cameras[i].name} ${SURFACES[state.cameras[i].surface].label}`; });
-  const baseLabel = state.environment === 'meal' ? '选中 A/B/C/D 后点击“食物取景”，以该主摄自动调整姿势。佩戴距离越大越靠近肘部；快速取景会保留此距离与镜头参数。当前不计算卡路里。' : state.pose.flip === 0 ? '可用“手臂水平内收”把手腕带到身体前方。表体平放：表背镜头通常被底座挡住。选择“抬腕立起”，观察后摄如何转向环境。' : '表体已立起：前后摄朝向随翻转变化。镜头是否看向正前方，还取决于手臂姿势和转腕角度。';
+  const baseLabel = state.environment === 'meal' ? '选中 A/B/C/D 后点击“食物取景”，以该主摄调整人体姿势，保留当前表体角度、旋转和佩戴距离；表体后摄仅自动立起到90°。当前不计算卡路里。' : state.pose.flip === 0 ? '可用“手臂水平内收”把手腕带到身体前方。表体平放：表背镜头通常被底座挡住。选择“抬腕立起”，观察后摄如何转向环境。' : '表体已立起：前后摄朝向随翻转变化。镜头是否看向正前方，还取决于手臂姿势和转腕角度。';
   $('#hint').textContent = state.showBody ? baseLabel : '人体已隐藏，相关遮挡也已移除；此状态用于排查镜头方向，不代表真实佩戴视野。';
   document.querySelectorAll('input[type="range"]').forEach(input => {
     input.style.setProperty('--progress', `${(+input.value - +input.min) / (+input.max - +input.min) * 100}%`);
@@ -125,7 +125,7 @@ function quickFrameMeal() {
     state.pose = result.pose; state.preset = 'meal';
   }
   frameCamera('meal');
-  toast(`主摄 ${config.name} · ${result.framed ? '取景完成，餐盘范围 4/4' : result.reason}`);
+  toast(`主摄 ${config.name}${config.attach === 'body' && config.surface === 'rear' && config.enabled ? ' · 表体立起90°' : ''} · ${result.framed ? '取景完成，餐盘范围 4/4' : result.reason}`);
 }
 function applyState(swing = 0) {
   if (!world) return;

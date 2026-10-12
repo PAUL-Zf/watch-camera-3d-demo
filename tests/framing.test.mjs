@@ -55,6 +55,7 @@ test('quick framing handles all six body lens surfaces on both wrists while pres
     const config={...DEFAULT_CAMERAS[0],surface},before=JSON.stringify(config),pose=presetPose('look',side,85);
     const original=JSON.stringify(pose),result=fitMealToCamera(w,config,pose,side);
     assertFramed(w,result,config,side);
+    assert.equal(result.pose.flip,surface==='rear'?90:pose.flip); assert.equal(result.pose.spin,pose.spin);
     assert.equal(result.pose.wearDistance,85); assert.equal(JSON.stringify(config),before); assert.equal(JSON.stringify(pose),original);
   }
 });
@@ -82,9 +83,23 @@ test('closed lenses and skin-facing base rear fail explicitly without changing t
 });
 
 test('default scene is food; v2 imports retain an explicit scene and gain a bounded wearing distance', () => {
-  const initial=defaultState();assert.equal(initial.environment,'meal');assert.equal(initial.pose.wearDistance,53);
+  const initial=defaultState();assert.equal(initial.environment,'meal');assert.equal(initial.pose.wearDistance,53);assert.equal(initial.pose.flip,0);assert.equal(initial.pose.spin,0);
   const old={...initial,schemaVersion:2,environment:'calibration',pose:{...initial.pose}};delete old.pose.wearDistance;
   const next=validateState(old);assert.equal(next.schemaVersion,3);assert.equal(next.environment,'calibration');assert.equal(next.pose.wearDistance,53);
   assert.throws(()=>validateState({...initial,pose:{...initial.pose,wearDistance:9}}));
   assert.throws(()=>validateState({...initial,pose:{...initial.pose,wearDistance:121}}));
+});
+
+
+test('quick framing locks all current activity settings, with only the body rear lifting to exactly 90 degrees', () => {
+  const w=createWorld();w.selectEnvironment('meal');
+  for(const side of ['left','right']) for(const attach of ['body','base']) for(const surface of ['front','rear','twelve','three','six','nine']) {
+    for(const [flip,spin] of [[0,0],[45,37],[120,-92]]) {
+      const config={...DEFAULT_CAMERAS[0],surface,attach};const pose={...presetPose('look',side,15),flip,spin};
+      const before=JSON.stringify(pose),result=fitMealToCamera(w,config,pose,side);
+      assert.equal(result.pose.flip,attach==='body'&&surface==='rear'?90:flip,`${side} ${attach} ${surface}`);
+      assert.equal(result.pose.spin,spin);assert.equal(result.pose.wearDistance,15);assert.equal(JSON.stringify(pose),before);
+      if(result.framed) assertFramed(w,result,config,side);
+    }
+  }
 });

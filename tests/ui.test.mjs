@@ -270,3 +270,26 @@ test('selected main lens drives quick framing, keeps its full config and wearing
     assert.deepEqual(e.errors,[]);
   }finally{e.close();}
 });
+
+
+test('food action preserves activity controls for A C D and only forces B body flip to 90, including nonzero manual angles', () => {
+  const e=setup();try {
+    assert.equal(e.w.watchVision.getState().pose.flip,0);assert.equal(e.w.watchVision.getState().pose.spin,0);
+    for(const slot of [0,2,3]) {
+      click(e,`#cameraTabs [data-camera="${slot}"]`);click(e,'[data-preset="meal"]');
+      assert.equal(e.w.watchVision.getState().pose.flip,0);assert.equal(e.w.watchVision.getState().pose.spin,0);
+      assert.equal(e.doc.querySelector('#pose-spin').value,'0');assert.equal(e.doc.querySelector('#pose-flip').value,'0');
+    }
+    slide(e,'#pose-flip',45);slide(e,'#pose-spin',37);slide(e,'#pose-wearDistance',20);
+    for(const slot of [0,2,3]) {
+      click(e,`#cameraTabs [data-camera="${slot}"]`);click(e,'[data-preset="meal"]');
+      const pose=e.w.watchVision.getState().pose;assert.equal(pose.flip,45);assert.equal(pose.spin,37);assert.equal(pose.wearDistance,20);
+    }
+    click(e,'#cameraTabs [data-camera="1"]');click(e,'[data-preset="meal"]');
+    const after=e.w.watchVision.getState().pose;assert.equal(after.flip,90);assert.equal(after.spin,37);assert.equal(after.wearDistance,20);
+    assert.equal(e.doc.querySelector('#pose-flip').value,'90');assert.equal(e.doc.querySelector('#pose-spin').value,'37');
+    const stored=JSON.parse(e.w.localStorage.getItem('watch-camera-vision-v1'));assert.equal(stored.pose.flip,90);assert.equal(stored.pose.spin,37);
+    click(e,'#cameraTabs [data-camera="2"]');click(e,'[data-preset="meal"]');assert.equal(e.w.watchVision.getState().pose.flip,90);
+    assert.deepEqual(e.errors,[]);
+  }finally{e.close();}
+});
