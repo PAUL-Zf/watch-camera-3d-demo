@@ -57,7 +57,7 @@ test('UI initializes four feeds and submits five view renders per frame', () => 
 test('feed images fit both wide and tall cells at 4:3 and all controls stay present', () => {
   const e = setup(); try {
     assert.equal(e.doc.querySelectorAll('.control-section').length, 3);
-    assert.equal(e.doc.querySelectorAll('[data-group="pose"]').length, 7);
+    assert.equal(e.doc.querySelectorAll('[data-group="pose"]').length, 8);
     assert.equal(e.doc.querySelectorAll('[data-group="camera"]').length, 4);
     let time = 0;
     for (const [size, expected] of [[{ width: 600, height: 240 }, { width: 320, height: 240 }], [{ width: 160, height: 400 }, { width: 160, height: 120 }], [{ width: 300.5, height: 161.5 }, { width: 215, height: 161.25 }]]) {
@@ -220,5 +220,33 @@ test('shortcut selection follows imported configuration and matching FOV across 
     click(e, '#matchFov'); click(e, '#cameraTabs [data-camera="3"]');
     assert.equal(e.doc.querySelector('[data-fov="60"]').classList.contains('active'), true);
     assert.equal(e.doc.querySelector('[data-roll="0"]').getAttribute('aria-pressed'), 'true'); assert.deepEqual(e.errors, []);
+  } finally { e.close(); }
+});
+
+test('scene selector, food preset, articulation and config export preserve independent controls', () => {
+  const e = setup(); try {
+    const original = JSON.stringify(e.w.watchVision.getState().cameras);
+    change(e, '#environment', 'meal'); assert.equal(e.w.watchVision.getState().environment, 'meal');
+    assert.equal(e.w.watchVision.getState().preset, 'look');
+    click(e, '[data-preset="meal"]'); assert.equal(e.w.watchVision.getState().pose.twist, 90);
+    slide(e, '#pose-wrist', -50); slide(e, '#pose-deviation', 20);
+    assert.equal(e.w.watchVision.getState().pose.wrist, -50); assert.equal(e.w.watchVision.getState().pose.deviation, 20);
+    assert.equal(JSON.stringify(e.w.watchVision.getState().cameras), original);
+    e.frame(1000); assert.match(e.doc.querySelector('#status-3').textContent, /手部 \d+%/);
+    assert.match(e.doc.querySelector('#status-2').textContent, /餐盘范围/);
+    change(e, '#environment', 'calibration'); assert.equal(e.w.watchVision.getState().pose.wrist, -50);
+    assert.equal(JSON.parse(e.w.localStorage.getItem('watch-camera-vision-v1')).environment, 'calibration');
+    click(e, '#reset'); assert.equal(e.w.watchVision.getState().pose.deviation, 0);
+    assert.equal(e.doc.querySelector('#environment').value, 'calibration'); assert.deepEqual(e.errors, []);
+  } finally { e.close(); }
+});
+
+test('right wrist raised preset retains upright rear direction after automatic connection rotation', () => {
+  const e = setup(); try {
+    click(e, '[data-preset="upright"]'); click(e, '[data-side="right"]');
+    assert.equal(e.w.watchVision.getState().pose.spin, 90);
+    const rear = e.w.watchVision.cameraPoses()[1]; assert.ok(rear.direction[2] > .8); assert.ok(rear.up[1] > .99);
+    click(e, '[data-side="left"]'); assert.equal(e.w.watchVision.getState().pose.spin, -90);
+    assert.deepEqual(e.errors, []);
   } finally { e.close(); }
 });

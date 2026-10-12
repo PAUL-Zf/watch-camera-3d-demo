@@ -13,15 +13,15 @@
   <div class="app">
     <header class="topbar">
       <div class="brand"><span class="brand-mark">W<span>•</span></span><div><strong>WATCH <span>/</span> VISION</strong><small>手表摄像头 · 视野实验室</small></div></div>
-      <div class="top-meta"><span class="offline"><i></i> 本地离线</span><span class="version">CONCEPT DEMO · V0.1.10</span></div>
+      <div class="top-meta"><span class="offline"><i></i> 本地离线</span><span class="version">CONCEPT DEMO · V0.2.0</span></div>
       <div class="top-actions"><button id="exportConfig">导出配置</button><button id="importConfig">导入配置</button><button id="reset" class="dark-button">重置实验</button><input id="configFile" type="file" accept="application/json,.json" hidden></div>
     </header>
     <main class="workspace">
       <aside class="control-panel">
         <div class="control-guide" aria-label="调整顺序：姿势、表体、镜头"><span class="guide-caption">调整顺序</span><span>姿势</span><i aria-hidden="true">→</i><span>表体</span><i aria-hidden="true">→</i><span>镜头</span></div>
         <section class="control-section pose-section">
-        <div class="section-heading"><span class="step">01</span><h2>佩戴与姿势</h2><details class="section-help"><summary aria-label="佩戴与姿势说明">?</summary><p>先选择姿势，再微调关节。水平内收：正值让手腕靠近身体中线，负值向外展开；左右腕方向自动对应。前臂旋转是绕小臂自身轴线转动。</p></details></div>
-        <p class="section-description">先选场景，再调整关节</p>
+        <div class="section-heading"><span class="step">01</span><h2>佩戴与姿势</h2><details class="section-help"><summary aria-label="佩戴与姿势说明">?</summary><p>先选择姿势，再微调关节。水平内收：正值让手腕靠近身体中线，负值向外展开；左右腕方向自动对应。前臂旋转是绕小臂自身轴线转动。腕部屈伸：正值朝掌心弯曲，负值向手背伸展；侧偏正值朝拇指。手表固定于腕关节近端的前臂，不随手掌弯曲。</p></details></div>
+        <p class="section-description">手表固定于前臂，手掌独立屈伸</p>
         <div class="wrist-row"><span class="field-label" id="sideLabel">佩戴手腕</span><div class="segmented" id="sideGroup" role="group" aria-labelledby="sideLabel"><button data-side="left" class="active">左腕</button><button data-side="right">右腕</button></div></div>
         <div class="pose-list" id="poseList"></div>
         <div id="poseSliders" class="sliders"></div>
@@ -48,14 +48,14 @@
         </div>
       </aside>
       <section class="studio-panel">
-        <div class="panel-top"><div><span class="eyebrow">SPATIAL VIEW</span><h1>让视野随姿势变化</h1></div><span class="scene-badge">示意人体 · 非品牌复刻</span></div>
+        <div class="panel-top"><div><span class="eyebrow">SPATIAL VIEW</span><h1>让视野随姿势变化</h1></div><label class="environment-select">场景<select id="environment" aria-label="选择3D场景"><option value="calibration">视野参照场景</option><option value="meal">餐桌 · 食物取景</option></select></label></div>
         <div id="mainViewport" class="main-viewport" tabindex="0" aria-label="3D 场景，拖动旋转，滚轮缩放，方向键旋转">
-          <div class="view-top"><span class="live-label"><i></i> 3D 实时场景</span><div class="view-buttons"><button data-view="full">全身</button><button data-view="wrist">腕部</button><button data-view="face">脸部</button></div></div>
+          <div class="view-top"><span class="live-label"><i></i> 3D 实时场景</span><div class="view-buttons"><button data-view="full">全身</button><button data-view="wrist">腕部</button><button data-view="face">脸部</button><button data-view="meal">餐桌</button></div></div>
           <div id="loading">正在初始化 3D 场景…</div>
-          <div class="axis-note">Y ↑ 上方　 Z → 人体前方<br><span>钟点方向以表盘标记为准</span></div>
+          <div class="axis-note">Y ↑ 上方　 Z → 人体前方<br><span>正看表盘：12 上 · 3 右 · 9 左</span></div>
           <div class="view-help">拖动旋转 · 滚轮缩放 · 右键平移</div>
           <div class="viewport-status">
-        <div class="readout"><div><span class="eyebrow">CURRENT EXPERIMENT</span><strong id="poseReadout">抬腕看表</strong></div><div class="readout-stat"><small>表体立起</small><b id="flipReadout">0°</b></div><div class="readout-stat"><small>同步画面</small><b id="cameraCount">4 路</b></div><div class="readout-stat"><small>视野参照</small><b>人脸 / 标识 / 物体</b></div></div>
+        <div class="readout"><div><span class="eyebrow">CURRENT EXPERIMENT</span><strong id="poseReadout">抬腕看表</strong></div><div class="readout-stat"><small>表体立起</small><b id="flipReadout">0°</b></div><div class="readout-stat"><small>同步画面</small><b id="cameraCount">4 路</b></div><div class="readout-stat"><small>视野参照</small><b>人脸 / 手部 / 食物</b></div></div>
         <div class="explanation"><b>观察提示</b><span id="hint">选择“抬腕立起”，对比前摄看脸、后摄看环境；改变转腕角度，观察方向和遮挡。</span></div>
           </div>
         </div>
@@ -66,7 +66,7 @@
         <div class="panel-top"><div><span class="eyebrow">CAMERA FEEDS</span><h2>同一姿势，四个视角</h2></div><span class="aspect-label">4 : 3</span></div>
         <div id="feeds" class="feeds"></div>
         <div class="feed-key"><span><i style="background:#46d7cf"></i> A 前摄</span><span><i style="background:#ffbe6f"></i> B 后摄</span><span><i style="background:#92a7ff"></i> C 12 点钟侧</span><span><i style="background:#f292bf"></i> D 3 点钟侧</span></div>
-        <div class="camera-info"><b>实际镜头视角 · 保留人体与表壳遮挡</b><p title="视锥及彩色镜头标记只出现在外部观察视图，不进入摄像头画面。人脸提示来自少量采样点的视野与遮挡判断，不代表识别准确率或完整脸部覆盖率。">视锥仅在主视图显示；人脸提示为采样点判断。</p></div>
+        <div class="camera-info"><b>实际镜头视角 · 保留人体与表壳遮挡</b><p title="视锥及彩色镜头标记只出现在外部观察视图，不进入摄像头画面。人脸提示来自少量采样点的视野与遮挡判断，不代表识别准确率或完整脸部覆盖率。">视锥仅在主视图显示；手部百分比为近场射线遮挡采样；非识别结果。</p></div>
         <button id="saveImages" class="capture-button">↓ 保存四路对比图 PNG</button>
         <div class="target-legend"><div>前方：文字牌 / 方块 / 球 · 侧面：紫色标识 · 下方：地面刻度</div></div>
       </section>

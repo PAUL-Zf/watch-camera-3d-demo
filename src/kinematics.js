@@ -5,16 +5,22 @@ export const SURFACES = {
   front: { label: '屏幕面 · 前摄', position: [0, .0118, .019], normal: [0, 1, 0], up: [0, 0, 1] },
   rear: { label: '表体背面 · 后摄', position: [0, -.0118, .008], normal: [0, -1, 0], up: [0, 0, 1] },
   twelve: { label: '12 点钟侧', position: [0, .002, .0295], normal: [0, 0, 1], up: [0, 1, 0] },
-  three: { label: '3 点钟侧', position: [.024, .002, 0], normal: [1, 0, 0], up: [0, 1, 0] },
+  three: { label: '3 点钟侧', position: [-.024, .002, 0], normal: [-1, 0, 0], up: [0, 1, 0] },
   six: { label: '6 点钟侧', position: [0, .002, -.0295], normal: [0, 0, -1], up: [0, 1, 0] },
-  nine: { label: '9 点钟侧', position: [-.024, .002, 0], normal: [-1, 0, 0], up: [0, 1, 0] }
+  nine: { label: '9 点钟侧', position: [.024, .002, 0], normal: [1, 0, 0], up: [0, 1, 0] }
 };
 export const PRESETS = {
   look: { label: '抬腕看表', raise: 45, inward: 35, elbow: 95, twist: -28, wrist: 0, flip: 0, spin: 0 },
-  upright: { label: '抬腕立起 · 双摄', raise: 80, inward: 25, elbow: 5, twist: 0, wrist: 0, flip: 90, spin: 0 },
+  upright: { label: '抬腕立起 · 双摄', raise: 90, inward: 25, elbow: 0, twist: 0, wrist: 0, flip: 90, spin: -90 },
   down: { label: '自然下垂', raise: 0, inward: 0, elbow: 5, twist: 0, wrist: 0, flip: 0, spin: 0 },
-  forward: { label: '抬臂向前', raise: 85, inward: 0, elbow: 5, twist: 0, wrist: 0, flip: 90, spin: 0 }
+  meal: { label: '餐桌食物取景', raise: 70, inward: 15, elbow: 45, twist: 90, wrist: 0, deviation: 0, flip: 0, spin: 0 },
+  forward: { label: '抬臂向前', raise: 85, inward: 0, elbow: 5, twist: 0, wrist: 0, flip: 90, spin: -90 }
 };
+export function presetPose(key, side = 'left') {
+  const pose = { deviation: 0, ...PRESETS[key] };
+  if (side === 'right' && ['upright', 'forward'].includes(key)) pose.spin *= -1;
+  return pose;
+}
 export const DEFAULT_CAMERAS = [
   { name: 'A', surface: 'front', attach: 'body', yaw: 0, pitch: 0, roll: 0, fov: 90, enabled: true },
   { name: 'B', surface: 'rear', attach: 'body', yaw: 0, pitch: 0, roll: 0, fov: 90, enabled: true },
@@ -30,11 +36,15 @@ export function createRig() {
   const elbow = new THREE.Group(); elbow.name = 'elbow'; elbow.position.y = -.30; shoulder.add(elbow);
   const forearm = new THREE.Group(); forearm.name = 'forearm-roll'; elbow.add(forearm);
   const wrist = new THREE.Group(); wrist.name = 'wrist'; wrist.position.y = -.27; forearm.add(wrist);
-  const mount = new THREE.Group(); mount.name = 'watch-base'; mount.position.set(0, -.006, .038); mount.rotation.x = Math.PI / 2; wrist.add(mount);
+  const hand = new THREE.Group(); hand.name = 'midcarpal-hand'; hand.position.y = -.014; wrist.add(hand);
+  // The strap encircles the distal forearm, proximal to the wrist articulation.
+  // It must NOT rotate with wrist flexion. 3 o'clock points toward the hand on
+  // the left wrist; the same physical dial faces the opposite way on the right.
+  const mount = new THREE.Group(); mount.name = 'watch-base'; mount.position.set(0, -.217, .036); mount.rotation.set(Math.PI / 2, Math.PI / 2, 0); forearm.add(mount);
   const swivel = new THREE.Group(); swivel.name = 'base-swivel'; mount.add(swivel);
   const hinge = new THREE.Group(); hinge.name = 'hinge'; hinge.position.set(0, .006, -.029); swivel.add(hinge);
   const body = new THREE.Group(); body.name = 'movable-watch-body'; body.position.set(0, .011, .029); hinge.add(body);
-  return { root, shoulder, elbow, forearm, wrist, mount, swivel, hinge, body };
+  return { root, shoulder, elbow, forearm, wrist, hand, mount, swivel, hinge, body };
 }
 export function updatePose(rig, pose, side = 'left', swing = 0) {
   const sign = side === 'left' ? 1 : -1;
@@ -45,10 +55,16 @@ export function updatePose(rig, pose, side = 'left', swing = 0) {
   rig.shoulder.rotation.set(-(pose.raise + swing) * RAD, -(pose.inward ?? 0) * sign * RAD, 0, 'YXZ');
   rig.elbow.rotation.x = -pose.elbow * RAD;
   rig.forearm.rotation.y = pose.twist * RAD * sign;
-  rig.wrist.rotation.x = pose.wrist * RAD;
+  // Two serial articulation centres approximate radiocarpal + midcarpal motion.
+  // Positive flexion is toward the palm (-Z), negative is dorsal extension.
+  rig.wrist.rotation.set(pose.wrist * RAD * .65, 0, (pose.deviation ?? 0) * sign * RAD * .65);
+  rig.hand.rotation.set(pose.wrist * RAD * .35, 0, (pose.deviation ?? 0) * sign * RAD * .35);
+  rig.hand.scale.x = sign;
+  rig.mount.rotation.set(Math.PI / 2, sign * Math.PI / 2, 0);
   rig.swivel.rotation.y = pose.spin * RAD;
   rig.hinge.rotation.x = -pose.flip * RAD;
   rig.root.updateMatrixWorld(true);
+  rig.updateSoftTissue?.();
 }
 export function applyCameraConfig(camera, rig, config, aspect = 4 / 3) {
   const surface = SURFACES[config.surface];

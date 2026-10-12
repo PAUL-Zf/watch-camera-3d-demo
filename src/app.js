@@ -1,9 +1,10 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { SURFACES, PRESETS, DEFAULT_CAMERAS, updatePose, applyCameraConfig, cameraWorldPose } from './kinematics.js';
+import { SURFACES, PRESETS, presetPose, DEFAULT_CAMERAS, updatePose, applyCameraConfig, cameraWorldPose } from './kinematics.js';
 import { defaultState, validateState, POSE_LIMITS } from './config.js';
 import { createWorld } from './scene.js';
 import { fitSensorViewport } from './layout.js';
+import { sensorMeshes, sampleNearOcclusion } from './occlusion.js';
 
 const $ = selector => document.querySelector(selector);
 const COLORS = ['#46d7cf', '#ffbe6f', '#92a7ff', '#f292bf'];
@@ -13,6 +14,7 @@ const PARAMETER_ICONS = {
   inward: '<path d="M3 12h18M7 8l-4 4 4 4M17 8l4 4-4 4M12 4v3m0 10v3"/>',
   elbow: '<path d="M5 4v10l13 5"/><circle cx="5" cy="14" r="2"/><path d="M9 9a7 7 0 0 1 5 8"/>',
   twist: '<path d="M8 5a8 8 0 1 1-4 7M4 4v5h5M12 8v8"/>',
+  deviation: '<path d="M5 18l7-5 6-8M5 5h14M9 2L5 5l4 3"/>',
   wrist: '<path d="M4 19l7-7 8 2M11 12l2-7"/><circle cx="11" cy="12" r="2"/>',
   flip: '<path d="M3 18h18M6 15l9-11 4 3-9 11M8 7a8 8 0 0 0-4 7"/>',
   spin: '<rect x="8" y="8" width="8" height="8" rx="2"/><path d="M4 12a8 8 0 0 1 13-6M20 12a8 8 0 0 1-13 6M17 3v4h-4M7 21v-4h4"/>',
@@ -43,9 +45,9 @@ function slider(key, label, min, max, value, group) {
   return `<div class="slider-field parameter-${group}"><div class="slider-heading"><label for="${group}-${key}" title="${label} · 范围 ${min}°–${max}°"><span class="parameter-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" focusable="false">${PARAMETER_ICONS[key]}</svg></span><span class="parameter-label">${label}</span></label><output id="${group}-${key}-value" for="${group}-${key}">${value}°</output></div><div class="slider-track">${zero}<input id="${group}-${key}" data-group="${group}" data-key="${key}" type="range" min="${min}" max="${max}" value="${value}" step="1" style="--progress:${progress}%" title="${label} · 范围 ${min}°–${max}°"></div></div>`;
 }
 function renderUI() {
-  const presetNames = { look: '抬腕看表', upright: '立起双摄', down: '自然下垂', forward: '向前拍摄' };
+  const presetNames = { look: '抬腕看表', upright: '立起双摄', down: '自然下垂', forward: '向前拍摄', meal: '食物取景' };
   $('#poseList').innerHTML = Object.entries(PRESETS).map(([key, p]) => `<button data-preset="${key}" title="${p.label}" aria-label="${p.label}" class="${state.preset === key ? 'active' : ''}">${presetNames[key]}</button>`).join('');
-  $('#poseSliders').innerHTML = [['raise', '肩部抬臂'], ['inward', '水平内收 · 肩部'], ['elbow', '肘部弯曲'], ['twist', '前臂旋转'], ['wrist', '腕部弯曲']].map(([k, label]) => slider(k, label, ...POSE_LIMITS[k], state.pose[k], 'pose')).join('');
+  $('#poseSliders').innerHTML = [['raise', '肩部抬臂'], ['inward', '水平内收 · 肩部'], ['elbow', '肘部弯曲'], ['twist', '前臂旋转'], ['wrist', '腕部屈伸 · 正值掌屈'], ['deviation', '腕部侧偏 · 正值拇指侧']].map(([k, label]) => slider(k, label, ...POSE_LIMITS[k], state.pose[k], 'pose')).join('');
   $('#watchSliders').innerHTML = [['flip', '表体立起角度'], ['spin', '底座连接件旋转']].map(([k, label]) => slider(k, label, ...POSE_LIMITS[k], state.pose[k], 'pose')).join('');
   $('#cameraTabs').innerHTML = state.cameras.map((c, i) => `<button data-camera="${i}" aria-label="配置摄像头 ${c.name}" style="--cam-color:${COLORS[i]}" class="${i === state.selected ? 'active' : ''}"><span class="slot-letter"><i aria-hidden="true"></i>${c.name}</span><small class="slot-surface">${SLOT_NAMES[c.surface]}</small></button>`).join('');
   $('#feeds').innerHTML = state.cameras.map((c, i) => `<article class="feed ${i === state.selected ? 'selected' : ''} ${c.enabled ? '' : 'disabled'}" data-camera="${i}" style="--cam-color:${COLORS[i]}" tabindex="0" role="button" aria-label="配置摄像头 ${c.name}"><div class="feed-header"><span class="cam-letter">${c.name}</span><span class="feed-title" id="title-${i}">${SURFACES[c.surface].label}</span><span class="feed-selection">↗</span></div><div class="feed-frame"><div class="camera-view" id="viewport-${i}"><span class="feed-crosshair"></span><span class="feed-fov" id="fov-${i}">HFOV ${c.fov}°</span><div class="feed-disabled">镜头已关闭</div></div></div><div class="feed-bottom"><span id="details-${i}"></span><span class="visibility-status" id="status-${i}">正在分析视野…</span></div></article>`).join('');
@@ -70,6 +72,7 @@ function syncUI() {
     button.classList.toggle('active', active); button.setAttribute('aria-pressed', String(active));
   });
   document.querySelectorAll('input[data-group]').forEach(input => { input.value = (input.dataset.group === 'pose' ? state.pose : selected)[input.dataset.key]; $(`#${input.id}-value`).textContent = `${input.value}°`; });
+  $('#environment').value = state.environment;
   $('#poseReadout').textContent = PRESETS[state.preset]?.label || '自定义姿势';
   $('#flipReadout').textContent = `${state.pose.flip}°`;
   $('#cameraCount').textContent = `${state.cameras.filter(c => c.enabled).length} 路`;
@@ -94,7 +97,7 @@ function syncUI() {
   });
   document.querySelectorAll('[data-camera]').forEach(b => b.classList.toggle('active', +b.dataset.camera === state.selected));
   document.querySelectorAll('.feed-key span').forEach((el, i) => { el.lastChild.textContent = ` ${state.cameras[i].name} ${SURFACES[state.cameras[i].surface].label}`; });
-  const baseLabel = state.pose.flip === 0 ? '可用“手臂水平内收”把手腕带到身体前方。表体平放：表背镜头通常被底座挡住。选择“抬腕立起”，观察后摄如何转向环境。' : '表体已立起：前后摄朝向随翻转变化。镜头是否看向正前方，还取决于手臂姿势和转腕角度。';
+  const baseLabel = state.environment === 'meal' ? '餐桌用于验证食物取景与手部遮挡：可选“食物取景”姿势；镜头位置、偏转和视场角仍可自由调整。当前不计算卡路里。' : state.pose.flip === 0 ? '可用“手臂水平内收”把手腕带到身体前方。表体平放：表背镜头通常被底座挡住。选择“抬腕立起”，观察后摄如何转向环境。' : '表体已立起：前后摄朝向随翻转变化。镜头是否看向正前方，还取决于手臂姿势和转腕角度。';
   $('#hint').textContent = state.showBody ? baseLabel : '人体已隐藏，相关遮挡也已移除；此状态用于排查镜头方向，不代表真实佩戴视野。';
   document.querySelectorAll('input[type="range"]').forEach(input => {
     input.style.setProperty('--progress', `${(+input.value - +input.min) / (+input.max - +input.min) * 100}%`);
@@ -108,6 +111,8 @@ function selectCamera(i) {
 function applyState(swing = 0) {
   if (!world) return;
   updatePose(world.rig, state.pose, state.side, swing);
+  world.selectEnvironment(state.environment);
+  world.passiveHand.scale.x = state.side === 'left' ? -1 : 1;
   world.passiveArm.position.set(state.side === 'left' ? -.225 : .225, 1.38, 0);
   world.passiveArm.rotation.x = animation ? swing * Math.PI / 180 : 0;
   world.humanMeshes.forEach(m => { m.visible = state.showBody; });
@@ -151,6 +156,8 @@ function frameCamera(which) {
   view = which;
   if (which === 'wrist') {
     const target = world.rig.body.getWorldPosition(new THREE.Vector3()); orbit.target.copy(target); observer.position.copy(target).add(new THREE.Vector3(.16, .14, .22)); orbit.minDistance = .08;
+  } else if (which === 'meal') {
+    orbit.target.copy(world.meal.focus); observer.position.set(1.1, 1.8, 1.65); orbit.minDistance = .15;
   } else if (which === 'face') {
     orbit.target.set(0, 1.47, .05); observer.position.set(.7, 1.75, 1.4); orbit.minDistance = .3;
   } else {
@@ -167,15 +174,18 @@ function visiblePoint(camera, point, tolerance = .008) {
   return raycaster.intersectObjects(raycastMeshes, false).length === 0;
 }
 function updateStatuses() {
-  raycastMeshes = [];
-  world.scene.traverse(object => { if (object.isMesh && object.visible && object.layers.test(cameras[0].layers)) raycastMeshes.push(object); });
+  raycastMeshes = sensorMeshes(world.scene, cameras[0]);
   state.cameras.forEach((c, i) => {
     if (!c.enabled) { $(`#status-${i}`).textContent = '镜头已关闭'; return; }
     const origin = cameras[i].getWorldPosition(new THREE.Vector3());
     const faceCount = state.showBody && origin.z > .1 ? world.facePoints.filter(p => visiblePoint(cameras[i], p)).length : 0;
     const faceText = state.showBody ? (faceCount >= 4 ? '脸部可见' : faceCount ? '部分脸部可见' : '未见人脸') : '人体遮挡已关闭';
-    const target = world.targets.find(t => visiblePoint(cameras[i], t.point, .04));
-    $(`#status-${i}`).textContent = target ? `${faceText} · ${target.name}` : faceText;
+    const target = (state.environment === 'meal' ? world.meal.targets : world.targets).find(t => visiblePoint(cameras[i], t.point, .04));
+    const occlusion = sampleNearOcclusion(cameras[i], raycastMeshes);
+    const foodCount = state.environment === 'meal' ? world.meal.corners.filter(p => visiblePoint(cameras[i], p, .008)).length : null;
+    const status = $(`#status-${i}`);
+    status.textContent = `${state.environment === 'meal' ? `餐盘范围 ${foodCount}/4` : target ? target.name : faceText} · 手部 ${occlusion.hand}%`;
+    status.title = `近场遮挡采样（${occlusion.samples} 条射线 / 35 cm）：手掌与腕部 ${occlusion.hand}%，人体 ${occlusion.human}%，表壳/底座/表带 ${occlusion.housing}%。这是几何采样比例。餐盘范围是四个参考角点可见数，不是食物识别或热量估计。`;
   });
 }
 function renderView(camera, rect, main = false) {
@@ -237,8 +247,8 @@ function bindEvents() {
     if (card) { selectCamera(+card.dataset.camera); return; }
     if (!button) return;
     if (button.dataset.camera !== undefined) { selectCamera(+button.dataset.camera); return; }
-    if (button.dataset.side) { stopAnimation(); state.side = button.dataset.side; }
-    else if (button.dataset.preset) { stopAnimation(); state.preset = button.dataset.preset; state.pose = { ...PRESETS[state.preset] }; }
+    if (button.dataset.side) { stopAnimation(); state.side = button.dataset.side; if (state.preset !== 'custom') state.pose = presetPose(state.preset, state.side); }
+    else if (button.dataset.preset) { stopAnimation(); state.preset = button.dataset.preset; state.pose = presetPose(state.preset, state.side); if (state.preset === 'meal') { state.environment = 'meal'; frameCamera('meal'); } }
     else if (button.dataset.flip !== undefined) { stopAnimation(); state.pose.flip = +button.dataset.flip; state.preset = 'custom'; }
     else if (button.dataset.roll !== undefined) { state.cameras[state.selected].roll = +button.dataset.roll; }
     else if (button.dataset.fov) { state.cameras[state.selected].fov = +button.dataset.fov; }
@@ -278,6 +288,7 @@ function bindEvents() {
     const input = event.target, c = state.cameras[state.selected];
     if (input.id === 'cameraSurface') { c.surface = input.value; c.yaw = 0; c.pitch = 0; c.roll = 0; renderEditor(); }
     else if (input.id === 'cameraAttach') { c.attach = input.value; renderEditor(); }
+    else if (input.id === 'environment') { state.environment = input.value; frameCamera(state.environment === 'meal' ? 'meal' : 'full'); }
     else if (input.id === 'cameraEnabled') c.enabled = input.checked;
     else if (input.id === 'showFrustums') state.showFrustums = input.checked;
     else if (input.id === 'showAllFrustums') state.showAllFrustums = input.checked;
@@ -314,7 +325,7 @@ function initialize() {
     renderer.domElement.addEventListener('webglcontextlost', event => { event.preventDefault(); $('#loading').style.display = 'flex'; $('#loading').textContent = '3D 图形上下文已丢失，请重新打开页面。'; });
     requestAnimationFrame(renderFrame);
     // A read-only diagnostic API for development; geometry is the same as the visible simulator.
-    window.watchVision = { getState: () => JSON.parse(JSON.stringify(state)), cameraPoses: () => cameras.map(camera => { const p = cameraWorldPose(camera); return { position: p.position.toArray(), direction: p.direction.toArray(), up: p.up.toArray() }; }), setPreset: key => { if (!Object.hasOwn(PRESETS, key)) return; state.preset = key; state.pose = { ...PRESETS[key] }; syncUI(); applyState(); saveState(); } };
+    window.watchVision = { getState: () => JSON.parse(JSON.stringify(state)), occlusion: () => cameras.map(c => sampleNearOcclusion(c, sensorMeshes(world.scene, c))), cameraPoses: () => cameras.map(camera => { const p = cameraWorldPose(camera); return { position: p.position.toArray(), direction: p.direction.toArray(), up: p.up.toArray() }; }), setPreset: key => { if (!Object.hasOwn(PRESETS, key)) return; state.preset = key; state.pose = presetPose(key, state.side); if (key === 'meal') { state.environment = 'meal'; frameCamera('meal'); } syncUI(); applyState(); saveState(); } };
   } catch (error) {
     $('#loading').textContent = '无法启动 3D 场景。请使用支持 WebGL 2 的新版 Chrome / Edge，并启用浏览器硬件加速。';
     console.error(error); toast('3D 初始化失败，详见浏览器控制台');

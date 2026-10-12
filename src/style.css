@@ -475,3 +475,16 @@ footer span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 @media (min-height: 1360px) {
   .slider-field { height: 38px; }
 }
+
+/* 0.2: existing one-screen panel, with a distinct environment selector. */
+.environment-select { display: flex; align-items: center; gap: 7px; color: #597183; font-size: 13px; flex-shrink: 0; }
+.environment-select select { width: 155px; padding: 5px 8px; font: inherit; color: #234658; background: #f1f6f7; border: 1px solid #cfdee4; border-radius: 8px; }
+.pose-list { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.pose-list button:last-child { grid-column: span 2; }
+@media (max-height: 899px) {
+  .pose-list { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .pose-list button { font-size: 11px; }
+  .pose-list button:last-child { grid-column: auto; }
+}
+@media (min-height: 1080px) { .pose-list button { height: 28px; } }
+@media (max-width: 1450px) { .environment-select { font-size: 12px; gap: 4px; } .environment-select select { width: 136px; } }

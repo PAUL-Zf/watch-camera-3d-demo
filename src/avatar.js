@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
-// The avatar is cosmetic geometry on the existing rig. Joint lengths, wrist
-// mounts and camera coordinates remain owned by kinematics.js.
+// Anatomical surface geometry follows the rig. The wrist bridge is skinned
+// between distal forearm and the two wrist articulation centres.
 const mat = (color, roughness = .8) => new THREE.MeshStandardMaterial({ color, roughness });
 
 // Smooth elliptical sections provide a jaw, tailored clothes and tapered limbs
@@ -137,22 +137,86 @@ export function createAvatar(rig) {
     mesh(parent, loft([[-.27, 0, 0], [-.265, .028, .027], [-.215, .032, .031], [-.12, .041, .039], [-.055, .043, .041], [-.003, .037, .035], [.003, 0, 0]]), skin, [0, offset, 0]);
   }
   function hand(parent) {
-    ellipsoid(parent, skin, [0, -.043, 0], [.034, .053, .019]);
-    [-1.5, -.5, .5, 1.5].forEach((n, i) => {
-      const length = [ .033, .043, .040, .029 ][i];
-      mesh(parent, new THREE.CapsuleGeometry(.0067, length, 3, 10), skin, [n * .014, -.092 - length / 2, .001]);
+    const handMeshes = [];
+    const add = (geometry, material, position = [0, 0, 0], scale) => {
+      const m = mesh(parent, geometry, material, position, scale);
+      m.userData.region = 'hand'; handMeshes.push(m); return m;
+    };
+    // Flattened metacarpal fan: narrow at the carpus, broad at the knuckles.
+    add(loft([[-.091, 0, 0], [-.088, .030, .012, -.001],
+      [-.079, .039, .016], [-.053, .038, .020, -.002],
+      [-.026, .032, .021, -.002], [-.008, .028, .020], [.002, .024, .018]]), skin);
+    const nail = mat('#ead3be', .55), crease = mat('#bd8e77');
+    const fingerXs = [.026, .009, -.009, -.026]; // radial index -> ulnar little
+    const lengths = [.065, .074, .069, .053];
+    const tips = [];
+    fingerXs.forEach((x, i) => {
+      const finger = new THREE.Group(); finger.position.set(x, -.080, .002);
+      finger.rotation.z = (1.5 - i) * .055; parent.add(finger);
+      const radius = i === 3 ? .0065 : .0075;
+      const segments = [lengths[i] * .46, lengths[i] * .31, lengths[i] * .23];
+      let joint = finger;
+      segments.forEach((length, j) => {
+        const part = mesh(joint, new THREE.CapsuleGeometry(radius * (1 - j * .09), Math.max(.001, length - radius * 1.5), 5, 14), skin, [0, -length / 2, 0]);
+        part.userData.region = 'hand'; handMeshes.push(part);
+        if (j === 2) {
+          const n = mesh(joint, sphere, nail, [0, -length * .55, radius * .85], [radius * .72, length * .32, .001]);
+          n.userData.region = 'hand'; handMeshes.push(n);
+          const tip = new THREE.Object3D(); tip.position.y = -length; joint.add(tip); tips.push(tip);
+        } else {
+          const next = new THREE.Group(); next.position.y = -length; next.rotation.x = j ? .10 : .16; joint.add(next); joint = next;
+        }
+      });
+      const knuckle = add(sphere, skin, [x, -.079, .010], [.010, .012, .010]);
+      // Thin extensor ridges follow the hand dorsum; they participate in occlusion.
+      const ridge = curve(parent, [[x * .4, -.018, .019], [x * .8, -.048, .019], [x, -.073, .017]], .00075, skin);
+      ridge.userData.region = 'hand'; handMeshes.push(ridge);
     });
-    const thumb = mesh(parent, new THREE.CapsuleGeometry(.009, .031, 3, 10), skin, [-.035, -.062, .006]); thumb.rotation.z = -.35;
+    // Thumb emerges from the radial side with a thenar pad on the palm.
+    add(sphere, skin, [.029, -.033, -.007], [.020, .030, .018]);
+    const thumb = new THREE.Group(); thumb.position.set(.037, -.036, -.002); thumb.rotation.z = .60; thumb.rotation.x = .22; parent.add(thumb);
+    for (const [position, radius, length] of [[-.019, .010, .025], [-.047, .008, .021]]) {
+      const m = mesh(thumb, new THREE.CapsuleGeometry(radius, length, 5, 14), skin, [0, position, 0]); m.userData.region = 'hand'; handMeshes.push(m);
+    }
+    const thumbNail = mesh(thumb, sphere, nail, [0, -.054, .007], [.0055, .008, .001]); thumbNail.userData.region = 'hand'; handMeshes.push(thumbNail);
+    // Two understated palm creases and a proximal wrist fold.
+    for (const y of [-.027, -.047]) {
+      const line = curve(parent, [[-.020, y, -.020], [0, y - .004, -.022], [.018, y + .001, -.020]], .00045, crease);
+      line.userData.region = 'hand'; handMeshes.push(line);
+    }
+    return { handMeshes, tips };
   }
   upperArm(rig.shoulder);
   ellipsoid(rig.elbow, skin, [0, 0, 0], [.039, .04, .037]);
-  forearm(rig.forearm); hand(rig.wrist);
+  // Distal forearm is elliptical, not circular; the watch sits above its dorsum.
+  const forearmMesh = mesh(rig.forearm, loft([[-.250, .029, .025], [-.247, .029, .025], [-.215, .032, .027],
+    [-.12, .041, .035], [-.055, .043, .038], [-.003, .037, .035], [.003, 0, 0]]), skin);
+  forearmMesh.userData.region = 'forearm';
+  const activeHand = hand(rig.hand);
+  const wristBridge = mesh(rig.forearm, loft([[-.312, .031, .022], [-.297, .030, .023],
+    [-.283, .028, .022], [-.270, .027, .022], [-.257, .028, .023], [-.244, .029, .025]]), skin);
+  wristBridge.userData.region = 'wrist';
+  const bindPositions = wristBridge.geometry.attributes.position.array.slice();
+  const proximal = new THREE.Matrix4(), handRelative = new THREE.Matrix4(), v = new THREE.Vector3(), bent = new THREE.Vector3();
+  rig.updateSoftTissue = () => {
+    proximal.copy(rig.forearm.matrixWorld).invert(); handRelative.multiplyMatrices(proximal, rig.hand.matrixWorld);
+    const attribute = wristBridge.geometry.attributes.position;
+    for (let i = 0; i < attribute.count; i++) {
+      v.fromArray(bindPositions, i * 3);
+      const t = THREE.MathUtils.clamp((-.250 - v.y) / .052, 0, 1), weight = t * t * (3 - 2 * t);
+      // Bind hand origin is -.284; skin smoothly transitions from fixed forearm
+      // to moving carpus/hand without a rigid rotating cylinder or an open seam.
+      bent.set(v.x, v.y + .284, v.z).applyMatrix4(handRelative);
+      v.lerp(bent, weight); attribute.setXYZ(i, v.x, v.y, v.z);
+    }
+    attribute.needsUpdate = true; wristBridge.geometry.computeVertexNormals(); wristBridge.geometry.computeBoundingSphere(); wristBridge.geometry.computeBoundingBox();
+  };
   const passiveArm = new THREE.Group(); rig.root.add(passiveArm);
   upperArm(passiveArm); forearm(passiveArm, -.30);
   ellipsoid(passiveArm, skin, [0, -.30, 0], [.039, .04, .037]);
-  const passiveHand = new THREE.Group(); passiveHand.position.y = -.57; passiveArm.add(passiveHand); hand(passiveHand);
+  const passiveHand = new THREE.Group(); passiveHand.position.y = -.584; passiveArm.add(passiveHand); hand(passiveHand);
 
   // Sampling points lie on the updated facial surfaces, in the same world frame.
   const facePoints = [[0, 1.620, .128], [-.039, 1.654, .100], [.039, 1.654, .100], [0, 1.586, .103], [0, 1.692, .093]].map(p => new THREE.Vector3(...p));
-  return { humanMeshes, passiveArm, facePoints };
+  return { humanMeshes, passiveArm, passiveHand, facePoints, handMeshes: activeHand.handMeshes, fingerTips: activeHand.tips, wristBridge };
 }
