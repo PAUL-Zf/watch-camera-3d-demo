@@ -32,7 +32,7 @@ export function horizontalToVertical(hfov, aspect) {
 }
 // Elliptical forearm cross-sections shared by the watch mount and strap fitting.
 export function forearmRadius(y) {
-  const profile = [[-.25, .029, .025], [-.247, .029, .025], [-.215, .032, .027], [-.12, .041, .035], [-.055, .043, .038]];
+  const profile = [[-.27, .027, .022], [-.257, .028, .023], [-.25, .029, .025], [-.247, .029, .025], [-.215, .032, .027], [-.12, .041, .035], [-.055, .043, .038]];
   for (let i = 1; i < profile.length; i++) {
     if (y <= profile[i][0]) {
       const a = profile[i - 1], b = profile[i], t = THREE.MathUtils.clamp((y - a[0]) / (b[0] - a[0]), 0, 1);

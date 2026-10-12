@@ -1,5 +1,5 @@
 import { PRESETS, presetPose, DEFAULT_CAMERAS, SURFACES } from './kinematics.js';
-export const POSE_LIMITS = { raise: [-30, 120], inward: [-60, 90], elbow: [0, 140], twist: [-180, 180], wrist: [-60, 60], deviation: [-20, 30], flip: [0, 120], spin: [-180, 180], wearDistance: [35, 120] };
+export const POSE_LIMITS = { raise: [-30, 120], inward: [-60, 90], elbow: [0, 140], twist: [-180, 180], wrist: [-60, 60], deviation: [-20, 30], flip: [0, 120], spin: [-180, 180], wearDistance: [10, 120] };
 export function defaultState() {
   return { schemaVersion: 3, environment: 'meal', side: 'left', preset: 'look', pose: presetPose('look'), cameras: DEFAULT_CAMERAS.map(c => ({ ...c })), selected: 0, showFrustums: true, showAllFrustums: false, showBody: true };
 }

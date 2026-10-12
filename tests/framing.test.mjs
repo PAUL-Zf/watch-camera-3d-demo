@@ -11,7 +11,7 @@ globalThis.document = { createElement: () => ({ getContext: () => ({ fillRect() 
 test('wearing distance translates case and every attached lens along forearm, without moving hand or optical aim', () => {
   const w = createWorld(), camera = new THREE.PerspectiveCamera();
   for (const side of ['left','right']) for (const attach of ['body','base']) {
-    updatePose(w.rig, presetPose('look',side,35),side);
+    updatePose(w.rig, presetPose('look',side,10),side);
     applyCameraConfig(camera,w.rig,{...DEFAULT_CAMERAS[3],attach});
     const before = cameraWorldPose(camera), hand = w.rig.hand.getWorldPosition(new THREE.Vector3());
     updatePose(w.rig,presetPose('look',side,120),side); const after = cameraWorldPose(camera);
@@ -25,7 +25,7 @@ test('wearing distance translates case and every attached lens along forearm, wi
 
 test('band moves with the mount and fits both forearm edges rather than scaling an old rigid ring', () => {
   const w = createWorld(), band = w.scene.getObjectByName('fitted-forearm-strap');
-  for (const distance of [35,53,85,120]) {
+  for (const distance of [10,15,35,53,85,120]) {
     updatePose(w.rig,presetPose('look','left',distance));
     const positions=band.geometry.attributes.position;
     for (let k=0;k<4;k++) {
@@ -85,6 +85,6 @@ test('default scene is food; v2 imports retain an explicit scene and gain a boun
   const initial=defaultState();assert.equal(initial.environment,'meal');assert.equal(initial.pose.wearDistance,53);
   const old={...initial,schemaVersion:2,environment:'calibration',pose:{...initial.pose}};delete old.pose.wearDistance;
   const next=validateState(old);assert.equal(next.schemaVersion,3);assert.equal(next.environment,'calibration');assert.equal(next.pose.wearDistance,53);
-  assert.throws(()=>validateState({...initial,pose:{...initial.pose,wearDistance:34}}));
+  assert.throws(()=>validateState({...initial,pose:{...initial.pose,wearDistance:9}}));
   assert.throws(()=>validateState({...initial,pose:{...initial.pose,wearDistance:121}}));
 });
