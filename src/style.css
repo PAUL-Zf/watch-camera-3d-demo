@@ -488,3 +488,7 @@ footer span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 }
 @media (min-height: 1080px) { .pose-list button { height: 28px; } }
 @media (max-width: 1450px) { .environment-select { font-size: 12px; gap: 4px; } .environment-select select { width: 136px; } }
+/* Keep the extra wearing-distance row inside a shorter desktop viewport. */
+@media (max-height: 959px) {
+  .section-description { display: none; }
+}
