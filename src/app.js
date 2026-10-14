@@ -38,7 +38,7 @@ let renderer, world, observer, orbit;
 let cameraModules = [], photoSnapshot;
 let cameras = [], frustums = [], markers = [], feedRects = [], mainRect;
 let animation = false, animationStart = 0, lastSwing = 0, lastFrame = 0, lastStatus = 0, frames = 0, lastFPS = 0;
-let toastTimer; let view = 'full'; let raycastMeshes = [];
+let toastTimer; let view = 'full'; let raycastMeshes = []; let panelHeight = -1;
 
 function toast(message) { $('#toast').textContent = message; $('#toast').classList.add('toast-visible'); clearTimeout(toastTimer); toastTimer = setTimeout(() => $('#toast').classList.remove('toast-visible'), 3200); }
 function saveState() {
@@ -64,7 +64,7 @@ function renderUI() {
   $('#cameraTabs').innerHTML = state.cameras.map((c, i) => `<button data-camera="${i}" aria-label="配置摄像头 ${c.name}" style="--cam-color:${COLORS[i]}" class="${i === state.selected ? 'active' : ''}"><span class="slot-letter"><i aria-hidden="true"></i>${c.name}</span><small class="slot-surface">${SLOT_NAMES[c.surface]}</small></button>`).join('');
   $('#feeds').innerHTML = state.cameras.map((c, i) => `<article class="feed ${i === state.selected ? 'selected' : ''} ${c.enabled ? '' : 'disabled'}" data-camera="${i}" style="--cam-color:${COLORS[i]}" tabindex="0" role="button" aria-label="配置摄像头 ${c.name}"><div class="feed-header"><span class="cam-letter">${c.name}</span><span class="feed-title" id="title-${i}">${SURFACES[c.surface].label}</span><span class="feed-selection">↗</span></div><div class="feed-frame"><div class="camera-view" id="viewport-${i}"><span class="feed-crosshair"></span><span class="feed-fov" id="fov-${i}">HFOV ${c.fov}°</span><div class="feed-disabled">镜头已关闭</div></div></div><div class="feed-bottom"><span id="details-${i}"></span><span class="visibility-status" id="status-${i}">正在分析视野…</span></div></article>`).join('');
   $('#comparisonRows').innerHTML = state.cameras.map((c, i) => `<button data-camera="${i}" aria-label="配置摄像头 ${c.name}" class="comparison-row" style="--cam-color:${COLORS[i]}"><span class="summary-letter">${c.name}</span><span class="summary-mount"><span></span><small></small></span><span class="summary-fov"><span></span><small></small></span></button>`).join('');
-  renderEditor(); syncUI(); measure();
+  renderEditor(); syncUI(); panelHeight = -1; measure();
 }
 function renderEditor() {
   const c = state.cameras[state.selected];
@@ -167,6 +167,7 @@ function updateFrustum(i) {
   group.visible = state.cameras[i].enabled && state.showFrustums && (state.showAllFrustums || i === state.selected);
 }
 function measure() {
+  fitControlPanel();
   mainRect = $('#mainViewport').getBoundingClientRect();
   feedRects = state.cameras.map((_, i) => {
     const viewport = $(`#viewport-${i}`); if (!viewport) return;
@@ -178,9 +179,18 @@ function measure() {
     return viewport.getBoundingClientRect();
   });
 }
+function fitControlPanel() {
+  const panel=$('.control-panel'), height=panel.clientHeight;
+  if (height===panelHeight) return; panelHeight=height;
+  for (const density of ['roomy','compact','tight','small']) {
+    panel.dataset.density=density;
+    if ($('#cameraEditor').getBoundingClientRect().bottom <= panel.getBoundingClientRect().bottom-6) break;
+  }
+}
 function resize() {
+  panelHeight=-1; measure();
   if (!renderer) return;
-  renderer.setSize(window.innerWidth, window.innerHeight); measure();
+  renderer.setSize(window.innerWidth, window.innerHeight);
   if (view === 'meal') frameCamera('meal');
 }
 function frameCamera(which) {

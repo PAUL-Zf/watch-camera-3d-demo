@@ -536,3 +536,59 @@ footer span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .camera-shortcuts, .camera-actions, .angle-shortcuts { margin-top: 2px; }
   .camera-shortcuts { gap: 2px; }
 }
+/* Measure available space, preserving readable labels and every action. */
+.control-panel[data-density="compact"] { padding: 6px; gap: 4px; }
+.control-panel[data-density="compact"] .control-section { padding: 3px; }
+.control-panel[data-density="compact"] .section-description,
+.control-panel[data-density="compact"] .control-guide { display: none; }
+.control-panel[data-density="compact"] .section-heading { height: 24px; }
+.control-panel[data-density="compact"] .slider-field,
+.control-panel[data-density="compact"] .slider-field input { height: 20px; }
+.control-panel[data-density="compact"] .parameter-icon { width: 18px; height: 18px; padding: 1px; }
+.control-panel[data-density="compact"] .wrist-row,
+.control-panel[data-density="compact"] .segmented { height: 24px; }
+.control-panel[data-density="compact"] .pose-list button { height: 24px; }
+.control-panel[data-density="compact"] .camera-tabs { height: 28px; margin-bottom: 4px; }
+.control-panel[data-density="compact"] .select-row,
+.control-panel[data-density="compact"] .select-row select { height: 26px; }
+.control-panel[data-density="compact"] .camera-shortcuts { gap: 4px; margin-top: 4px; }
+.control-panel[data-density="compact"] .angle-shortcuts button,
+.control-panel[data-density="compact"] .camera-actions button { height: 24px; }
+.control-panel:is([data-density="tight"],[data-density="small"]) { padding: 3px; gap: 2px; }
+.control-panel:is([data-density="tight"],[data-density="small"]) .control-section { padding: 1px; }
+.control-panel:is([data-density="tight"],[data-density="small"]) .section-description,
+.control-panel:is([data-density="tight"],[data-density="small"]) .control-guide { display: none; }
+.control-panel:is([data-density="tight"],[data-density="small"]) .section-heading { height: 18px; margin-bottom: 1px; padding-bottom: 1px; }
+.control-panel:is([data-density="tight"],[data-density="small"]) .section-heading h2 { font-size: 13px; line-height: 17px; }
+.control-panel:is([data-density="tight"],[data-density="small"]) .step,
+.control-panel:is([data-density="tight"],[data-density="small"]) .section-help summary { height: 17px; }
+.control-panel:is([data-density="tight"],[data-density="small"]) .section-help summary { width: 17px; }
+.control-panel:is([data-density="tight"],[data-density="small"]) .slider-field,
+.control-panel:is([data-density="tight"],[data-density="small"]) .slider-field input { height: 16px; }
+.control-panel:is([data-density="tight"],[data-density="small"]) .slider-heading label,
+.control-panel:is([data-density="tight"],[data-density="small"]) .slider-heading output { line-height: 15px; font-size: 12px; }
+.control-panel:is([data-density="tight"],[data-density="small"]) .parameter-icon { width: 15px; height: 15px; padding: 1px; }
+.control-panel:is([data-density="tight"],[data-density="small"]) .sliders { gap: 0; }
+.control-panel:is([data-density="tight"],[data-density="small"]) .wrist-row,
+.control-panel:is([data-density="tight"],[data-density="small"]) .segmented { height: 20px; }
+.control-panel:is([data-density="tight"],[data-density="small"]) .pose-list { grid-template-columns: repeat(5,minmax(0,1fr)); }
+.control-panel:is([data-density="tight"],[data-density="small"]) .pose-list button { grid-column: auto; font-size: 11px; overflow: hidden; text-overflow: ellipsis; }
+.control-panel:is([data-density="tight"],[data-density="small"]) .pose-list button,
+.control-panel:is([data-density="tight"],[data-density="small"]) .angle-shortcuts button,
+.control-panel:is([data-density="tight"],[data-density="small"]) .camera-actions button { height: 18px; }
+.control-panel:is([data-density="tight"],[data-density="small"]) .camera-tabs { height: 22px; margin-bottom: 2px; }
+.control-panel:is([data-density="tight"],[data-density="small"]) .select-row,
+.control-panel:is([data-density="tight"],[data-density="small"]) .select-row select { height: 20px; font-size: 12px; }
+.control-panel:is([data-density="tight"],[data-density="small"]) .camera-mount-fields { gap: 1px; margin-bottom: 2px; }
+.control-panel:is([data-density="tight"],[data-density="small"]) .camera-spec-fields { gap: 0; padding-bottom: 2px; margin-bottom: 2px; }
+.control-panel:is([data-density="tight"],[data-density="small"]) .angle-shortcuts,
+.control-panel:is([data-density="tight"],[data-density="small"]) .camera-shortcuts,
+.control-panel:is([data-density="tight"],[data-density="small"]) .camera-actions { margin-top: 2px; }
+.control-panel:is([data-density="tight"],[data-density="small"]) .camera-shortcuts { gap: 2px; }
+.control-panel[data-density="small"] .slider-field,
+.control-panel[data-density="small"] .slider-field input { height: 14px; }
+.control-panel[data-density="small"] .slider-heading label,
+.control-panel[data-density="small"] .slider-heading output { line-height: 14px; }
+.control-panel[data-density="small"] .parameter-icon { width: 14px; height: 14px; }
+.control-panel[data-density="small"] .wrist-row,
+.control-panel[data-density="small"] .pose-list { margin-bottom: 1px; }
