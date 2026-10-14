@@ -511,7 +511,10 @@ footer span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #photoCanvasStage { display: grid; place-items: center; }
 #photoCanvasHost canvas { display: block; max-width: none; max-height: none; user-select: none; }
 #photoCanvasHost.actual-size { overflow: auto; cursor: grab; touch-action: none; overscroll-behavior: contain; scrollbar-gutter: stable; }
-#photoCanvasHost.actual-size #photoCanvasStage { place-items: start; }
+#photoCanvasHost.zoomable { overflow: auto; cursor: grab; touch-action: none; overscroll-behavior: contain; scrollbar-gutter: stable; }
+.photo-zoom-controls { display: flex; gap: 4px; align-items: center; }
+.photo-zoom-controls output { min-width: 58px; text-align: center; font-size: 13px; font-variant-numeric: tabular-nums; color: #315e68; }
+.photo-zoom-controls button { min-width: 28px; }
 #photoCanvasHost.panning { cursor: grabbing; }
 .view-buttons button[hidden], .pose-list button[hidden] { display: none; }
 #photoNote { font-size: 12px; line-height: 18px; color: #647f8b; }

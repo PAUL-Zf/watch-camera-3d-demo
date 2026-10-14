@@ -13,7 +13,7 @@
   <div class="app">
     <header class="topbar">
       <div class="brand"><span class="brand-mark">W<span>•</span></span><div><strong>WATCH <span>/</span> VISION</strong><small>手表摄像头 · 视野实验室</small></div></div>
-      <div class="top-meta"><span class="offline"><i></i> 本地离线</span><span class="version">CONCEPT DEMO · V0.3.2</span></div>
+      <div class="top-meta"><span class="offline"><i></i> 本地离线</span><span class="version">CONCEPT DEMO · V0.3.3</span></div>
       <div class="top-actions"><button id="exportConfig">导出配置</button><button id="importConfig">导入配置</button><button id="reset" class="dark-button">重置实验</button><input id="configFile" type="file" accept="application/json,.json" hidden></div>
     </header>
     <main class="workspace">
@@ -77,9 +77,9 @@
   <dialog id="photoDialog" aria-labelledby="photoTitle" aria-describedby="photoNote">
     <div class="photo-heading"><h2 id="photoTitle">主摄照片</h2><button id="closePhoto" aria-label="关闭照片">×</button></div>
     <p id="photoMeta"></p>
-    <div class="photo-actions"><button id="photoFit" aria-pressed="true">适应窗口</button><button id="photoActual" aria-pressed="false">100% 原尺寸</button><button id="savePhoto">↓ 保存原尺寸 PNG</button></div>
+    <div class="photo-actions"><button id="photoFit" aria-pressed="true">适应窗口</button><button id="photoActual" aria-pressed="false">100% 原尺寸</button><div class="photo-zoom-controls" role="group" aria-label="照片缩放"><button id="photoZoomOut" aria-label="缩小照片">−</button><output id="photoZoomValue" aria-live="polite">100%</output><button id="photoZoomIn" aria-label="放大照片">＋</button></div><button id="savePhoto">↓ 保存原尺寸 PNG</button></div>
     <div id="photoCanvasHost" tabindex="0" aria-label="照片查看区域，原尺寸时可滚动或拖动查看局部"><div id="photoCanvasStage"></div></div>
-    <p id="photoNote">100% 时可滚轮上下滚动、Shift＋滚轮横向滚动，也可按住照片拖动查看局部。一个图像像素对应一个界面像素；照片小于窗口时无需滚动。仅模拟像素采样，不代表实机清晰度或识别效果。</p>
+    <p id="photoNote">滚轮以鼠标位置为中心缩放，按住照片拖动查看局部；Shift＋滚轮横向平移，方向键移动。缩放范围1%–800%，100%为原尺寸；缩放不增加照片像素，保存PNG始终为原始分辨率。</p>
   </dialog>
   <div id="toast" role="status" aria-live="polite"></div>
   <script>/* INLINE_SCRIPT */</script>

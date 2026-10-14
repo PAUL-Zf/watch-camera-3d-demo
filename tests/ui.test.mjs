@@ -116,6 +116,17 @@ test('photo viewer captures every supported native grid, exports exact dimension
     e.w.__viewports.length=0;e.frame(1000);assert.equal(e.w.__viewports.length,5);assert.ok(e.w.__viewports.slice(1).every(v=>v.width===180&&v.height===135));assert.deepEqual(e.errors,[]);
   }finally{e.close();}
 });
+test('photo zoom buttons and wheel update the percentage while native image export keeps its pixel dimensions',()=>{
+  const e=setup();try {
+    click(e,'#takePhoto');click(e,'#photoActual');assert.equal(e.doc.querySelector('#photoZoomValue').textContent,'100%');
+    click(e,'#photoZoomIn');assert.equal(e.doc.querySelector('#photoZoomValue').textContent,'125%');assert.equal(e.doc.querySelector('#photoCanvasHost canvas').style.width,'800px');
+    click(e,'#photoZoomOut');assert.equal(e.doc.querySelector('#photoZoomValue').textContent,'100%');
+    const wheel=new e.w.WheelEvent('wheel',{deltaY:-120,clientX:300,clientY:200,cancelable:true,bubbles:true});e.doc.querySelector('#photoCanvasHost').dispatchEvent(wheel);assert.equal(wheel.defaultPrevented,true);assert.notEqual(e.doc.querySelector('#photoZoomValue').textContent,'100%');
+    click(e,'#savePhoto');assert.deepEqual(e.w.__exportSize,[640,480]);
+    click(e,'#photoFit');assert.equal(e.doc.querySelector('#photoFit').getAttribute('aria-pressed'),'true');
+    click(e,'#closePhoto');click(e,'#takePhoto');assert.equal(e.doc.querySelector('#photoFit').getAttribute('aria-pressed'),'true');assert.deepEqual(e.errors,[]);
+  }finally{e.close();}
+});
 test('reference scene removes meal-only controls and table view switches to a complete downward table overview',()=>{
   const e=setup();try {
     const cameras=e.w.watchVision.cameraPoses(),pose=e.w.watchVision.getState().pose;

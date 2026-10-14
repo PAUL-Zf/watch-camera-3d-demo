@@ -10,7 +10,7 @@ import { fitMealOverview, fitTableOverview } from './overview.js';
 import { PHOTO_RESOLUTIONS, MODULE_LIMITS, pixelLabel } from './camera-specs.js';
 import { createCameraModule, updateCameraModule } from './camera-module.js';
 import { renderSensorPhoto } from './photos.js';
-import { layoutPhoto, bindPhotoPan } from './photo-viewer.js';
+import { createPhotoViewer, MIN_PHOTO_ZOOM, MAX_PHOTO_ZOOM } from './photo-viewer.js';
 
 const $ = selector => document.querySelector(selector);
 const COLORS = ['#46d7cf', '#ffbe6f', '#92a7ff', '#f292bf'];
@@ -36,7 +36,7 @@ const STORAGE_KEY = 'watch-camera-vision-v1';
 let state = defaultState(); let hasStorage = true;
 try { const saved = localStorage.getItem(STORAGE_KEY); if (saved) { const input = JSON.parse(saved); state = validateState(input); if (input.schemaVersion < 3) state.environment = 'meal'; } } catch { hasStorage = false; }
 let renderer, world, observer, orbit;
-let cameraModules = [], photoSnapshot;
+let cameraModules = [], photoSnapshot, photoViewer;
 let cameras = [], frustums = [], markers = [], feedRects = [], mainRect;
 let animation = false, animationStart = 0, lastSwing = 0, lastFrame = 0, lastStatus = 0, frames = 0, lastFPS = 0;
 let toastTimer; let view = 'full'; let raycastMeshes = []; let panelHeight = -1;
@@ -192,7 +192,7 @@ function fitControlPanel() {
 }
 function resize() {
   panelHeight=-1; measure();
-  if (photoSnapshot && $('#photoDialog').open) layoutPhoto($('#photoCanvasHost'),$('#photoCanvasStage'),photoSnapshot.canvas,$('#photoCanvasHost').classList.contains('actual-size'));
+  if (photoSnapshot && $('#photoDialog').open) photoViewer.resize();
   if (!renderer) return;
   renderer.setSize(window.innerWidth, window.innerHeight);
   if (['meal','overview'].includes(view)) frameCamera(view);
@@ -283,13 +283,7 @@ function takePhoto() {
 }
 function setPhotoScale(actual) {
   if (!photoSnapshot) return;
-  const host=$('#photoCanvasHost');
-  layoutPhoto(host,$('#photoCanvasStage'),photoSnapshot.canvas,actual);
-  $('#photoFit').setAttribute('aria-pressed',String(!actual)); $('#photoActual').setAttribute('aria-pressed',String(actual));
-  // 100% uses one image pixel per CSS pixel; initially centre the crop.
-  host.scrollLeft=actual ? Math.max(0,(photoSnapshot.canvas.width-host.clientWidth)/2) : 0;
-  host.scrollTop=actual ? Math.max(0,(photoSnapshot.canvas.height-host.clientHeight)/2) : 0;
-  if (actual) host.focus();
+  if(actual){photoViewer.setZoom(1);$('#photoCanvasHost').focus();}else photoViewer.fit();
 }
 function savePhoto() {
   if (!photoSnapshot) return;
@@ -298,6 +292,7 @@ function savePhoto() {
 }
 function closePhoto() {
   $('#photoDialog').close(); $('#photoCanvasStage').replaceChildren(); $('#photoCanvasHost').classList.remove('panning');
+  photoViewer.reset();
   // Release large 8MP canvases instead of retaining previous snapshots.
   if (photoSnapshot) { photoSnapshot.canvas.width=0; photoSnapshot.canvas.height=0; photoSnapshot=undefined; }
   $('#takePhoto').focus();
@@ -356,6 +351,7 @@ function bindEvents() {
     else if (button.id === 'saveImages') { capture(); return; }
     else if (button.id === 'takePhoto') { takePhoto(); return; }
     else if (button.id === 'photoFit' || button.id === 'photoActual') { setPhotoScale(button.id === 'photoActual'); return; }
+    else if (button.id === 'photoZoomIn' || button.id === 'photoZoomOut') { photoViewer.zoomBy(button.id==='photoZoomIn'?1.25:1/1.25); return; }
     else if (button.id === 'savePhoto') { savePhoto(); return; }
     else if (button.id === 'closePhoto') { closePhoto(); return; }
     else return;
@@ -396,7 +392,12 @@ function bindEvents() {
     finally { event.target.value = ''; }
   });
   $('#photoDialog').addEventListener('cancel', event => { event.preventDefault(); closePhoto(); });
-  bindPhotoPan($('#photoCanvasHost'));
+  photoViewer=createPhotoViewer($('#photoCanvasHost'),$('#photoCanvasStage'),()=>photoSnapshot?.canvas,({zoom,mode})=>{
+    $('#photoZoomValue').textContent=`${Math.round(zoom*1000)/10}%`;
+    $('#photoFit').setAttribute('aria-pressed',String(mode==='fit'));
+    $('#photoActual').setAttribute('aria-pressed',String(Math.abs(zoom-1)<1e-8));
+    $('#photoZoomOut').disabled=zoom<=MIN_PHOTO_ZOOM;$('#photoZoomIn').disabled=zoom>=MAX_PHOTO_ZOOM;
+  });
   window.addEventListener('resize', resize); window.addEventListener('scroll', measure, { passive: true });
 }
 function initialize() {
