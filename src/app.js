@@ -194,8 +194,11 @@ function resize() {
   if (view === 'meal') frameCamera('meal');
 }
 function frameCamera(which) {
-  if (!orbit) return;
+  if (!orbit || !world || !observer) { toast('3D 场景尚未就绪，无法定位视角'); return; }
+  // Flush pending drag/damping before applying the exact preset transform.
+  const damping=orbit.enableDamping; orbit.enableDamping=false; orbit.update();
   view = which;
+  orbit.maxDistance=8;
   if (which === 'wrist') {
     const target = world.rig.body.getWorldPosition(new THREE.Vector3()); orbit.target.copy(target); observer.position.copy(target).add(new THREE.Vector3(.16, .14, .22)); orbit.minDistance = .08;
   } else if (which === 'meal') {
@@ -207,7 +210,8 @@ function frameCamera(which) {
   } else {
     orbit.target.set(0, 1.1, .45); observer.position.set(2.6, 2.2, 3.7); orbit.minDistance = .3;
   }
-  orbit.update();
+  orbit.update(); orbit.enableDamping=damping;
+  document.querySelectorAll('[data-view]').forEach(button => button.setAttribute('aria-pressed',String(button.dataset.view===which)));
 }
 const raycaster = new THREE.Raycaster();
 function visiblePoint(camera, point, tolerance = .008) {
@@ -315,6 +319,10 @@ function capture() {
   } catch (error) { toast(`无法导出：${error.message}`); }
 }
 function bindEvents() {
+  // OrbitControls captures pointers on mainViewport. A press on a descendant
+  // toolbar button must stay on that button so pointerup can produce its click.
+  $('.view-buttons').addEventListener('pointerdown', event => event.stopPropagation());
+  $('.view-buttons').addEventListener('keydown', event => event.stopPropagation());
   document.addEventListener('click', event => {
     const button = event.target.closest('button'); const card = event.target.closest('.feed');
     if (card) { selectCamera(+card.dataset.camera); return; }

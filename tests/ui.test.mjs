@@ -12,13 +12,13 @@ const rendererDouble = `
 import * as Real from ${JSON.stringify(threePath)};
 export * from ${JSON.stringify(threePath)};
 export class WebGLRenderer {
- constructor(){this.domElement=document.createElement('canvas');this.viewport=new Real.Vector4();this.scissor=new Real.Vector4();this.target=null;this.scissorTest=false;window.__renders=0;window.__viewports=[];}
+ constructor(){this.domElement=document.createElement('canvas');this.viewport=new Real.Vector4();this.scissor=new Real.Vector4();this.target=null;this.scissorTest=false;window.__renders=0;window.__viewports=[];window.__observerViews=[];}
  setPixelRatio(){} setSize(){} setClearColor(){} clear(){}
  setViewport(a,b,c,d){if(a?.isVector4)this.viewport.copy(a);else this.viewport.set(a,b,c,d);}
  setScissor(a,b,c,d){if(a?.isVector4)this.scissor.copy(a);else this.scissor.set(a,b,c,d);}
  getViewport(v){return v.copy(this.viewport);} getScissor(v){return v.copy(this.scissor);}
  setScissorTest(v){this.scissorTest=v;} getScissorTest(){return this.scissorTest;}
- render(scene,camera){window.__renders++;window.__viewports.push({width:this.viewport.z,height:this.viewport.w,aspect:camera.aspect});} setRenderTarget(t){this.target=t;} getRenderTarget(){return this.target;}
+ render(scene,camera){if(camera.layers.isEnabled(1))window.__observerViews.push({position:camera.position.toArray(),direction:camera.getWorldDirection(new Real.Vector3()).toArray()});window.__renders++;window.__viewports.push({width:this.viewport.z,height:this.viewport.w,aspect:camera.aspect});} setRenderTarget(t){this.target=t;} getRenderTarget(){return this.target;}
  readRenderTargetPixels(t,x,y,w,h,p){p.fill(128);}
 }`;
 const bundle = await build({ entryPoints: [fileURLToPath(new URL('../src/app.js', import.meta.url))], bundle: true, write: false, format: 'iife', plugins: [{ name: 'renderer-double', setup(builder) {
@@ -30,6 +30,9 @@ const html = await readFile(new URL('../src/index.html', import.meta.url), 'utf8
 function setup(url = 'https://local-test.invalid/') {
   const dom = new JSDOM(html, { url, runScripts: 'outside-only', pretendToBeVisual: true });
   const w = dom.window; let raf = [];
+  w.__capturedPointers=[];
+  w.HTMLElement.prototype.setPointerCapture = function(pointerId){w.__capturedPointers.push({id:this.id,pointerId});};
+  w.HTMLElement.prototype.releasePointerCapture = function(){};
   w.requestAnimationFrame = fn => { raf.push(fn); return raf.length; };
   w.URL.createObjectURL = () => 'blob:test'; w.URL.revokeObjectURL = () => {};
   w.HTMLAnchorElement.prototype.click = function () { w.__download = this.download; };
@@ -49,6 +52,40 @@ function setup(url = 'https://local-test.invalid/') {
 function click(env, selector) { env.doc.querySelector(selector).click(); }
 function slide(env, selector, value) { const input = env.doc.querySelector(selector); input.value = value; input.dispatchEvent(new env.w.Event('input', { bubbles: true })); }
 function change(env, selector, value) { const input = env.doc.querySelector(selector); input.value = value; input.dispatchEvent(new env.w.Event('change', { bubbles: true })); }
+test('view buttons keep mouse/touch pointers away from OrbitControls capture while viewport dragging still captures', () => {
+  const e=setup();try {
+    const down=(element,type,pointerId)=>{
+      const event=new e.w.MouseEvent('pointerdown',{bubbles:true,button:0,clientX:300,clientY:110});
+      Object.defineProperties(event,{pointerId:{value:pointerId},pointerType:{value:type}});element.dispatchEvent(event);
+    };
+    for (const type of ['mouse','touch']) for (const button of e.doc.querySelectorAll('[data-view]')) {
+      down(button,type,1);assert.deepEqual(e.w.__capturedPointers,[],`${button.dataset.view}: toolbar pointer must not be captured by the viewport`);
+    }
+    down(e.doc.querySelector('#mainViewport'),'mouse',7);assert.equal(e.w.__capturedPointers[0].id,'mainViewport');assert.equal(e.w.__capturedPointers[0].pointerId,7);
+    assert.deepEqual(e.errors,[]);
+  }finally{e.close();}
+});
+test('all four view presets change the observer, survive later frames, show selection and leave every sensor and pose unchanged', () => {
+  const e=setup();try {
+    const before=e.w.watchVision.getState(),sensors=e.w.watchVision.cameraPoses();let time=1000;
+    const positions={};
+    for (const key of ['wrist','face','full','meal']) {
+      click(e,`[data-view="${key}"]`);e.frame(time);time+=1000;
+      const position=Array.from(e.w.__observerViews.at(-1).position);positions[key]=position;
+      assert.equal(e.doc.querySelectorAll('[data-view][aria-pressed="true"]').length,1);
+      assert.equal(e.doc.querySelector(`[data-view="${key}"]`).getAttribute('aria-pressed'),'true');
+      e.frame(time);time+=1000;assert.ok(Math.hypot(...Array.from(e.w.__observerViews.at(-1).position,(v,i)=>v-position[i]))<1e-8);
+      assert.deepEqual(e.w.watchVision.getState(),before);assert.deepEqual(e.w.watchVision.cameraPoses(),sensors);
+    }
+    assert.ok(Math.hypot(...positions.full.map((v,i)=>v-[2.6,2.2,3.7][i]))<1e-8);
+    assert.ok(Math.hypot(...positions.face.map((v,i)=>v-[.7,1.75,1.4][i]))<1e-8);
+    const wristDistance=Math.hypot(...positions.wrist.map((v,i)=>v-sensors[0].position[i]));assert.ok(wristDistance>.25&&wristDistance<.35);
+    for (const key of ['wrist','face','meal']) assert.ok(Math.hypot(...positions[key].map((v,i)=>v-positions.full[i]))>.1);
+    // Toolbar arrow keys must not also rotate the underlying scene.
+    e.doc.querySelector('[data-view="meal"]').dispatchEvent(new e.w.KeyboardEvent('keydown',{key:'ArrowLeft',bubbles:true}));
+    e.frame(time);assert.ok(Math.hypot(...Array.from(e.w.__observerViews.at(-1).position,(v,i)=>v-positions.meal[i]))<1e-8);assert.deepEqual(e.errors,[]);
+  }finally{e.close();}
+});
 test('per-slot module size and output grid persist independently without changing pose, HFOV or camera transform', () => {
   const e=setup();try {
     const before=e.w.watchVision.getState(),poses=e.w.watchVision.cameraPoses();

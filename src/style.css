@@ -95,10 +95,11 @@ h2 { font-size: 12px; line-height: 16px; letter-spacing: .1px; }
 .scene-badge, .aspect-label { font-size: 9px; color: #6b7d85; border: 1px solid #d4dfe2; padding: 4px 6px; border-radius: 5px; white-space: nowrap; }
 .main-viewport { flex: 1; min-height: 0; position: relative; border-radius: 11px; overflow: hidden; border: 1px solid #35454f; touch-action: none; cursor: grab; background: transparent; }
 .main-viewport:active { cursor: grabbing; }
-.view-top { position: absolute; top: 12px; left: 12px; right: 12px; display: flex; align-items: center; justify-content: space-between; pointer-events: none; gap: 6px; }
+.view-top { position: absolute; top: 12px; left: 12px; right: 12px; display: flex; align-items: center; justify-content: space-between; pointer-events: none; gap: 6px; z-index: 2; }
 .live-label { font-size: 10px; color: #b7c9d1; display: flex; gap: 6px; align-items: center; white-space: nowrap; }
 .view-buttons { display: flex; gap: 4px; pointer-events: auto; }
 .view-buttons button { background: #1d333fe0; color: #bacbd4; border-color: #3b535e; font-size: 10px; padding: 4px 7px; }
+.view-buttons button[aria-pressed="true"] { background: #2a625f; border-color: #78c7be; color: #effffa; }
 .axis-note { position: absolute; left: 13px; top: 48px; font-size: 10px; color: #aac1ca; line-height: 1.7; pointer-events: none; }
 .axis-note span { font-size: 9px; color: #748f9e; }
 .view-help { position: absolute; top: 86px; left: 13px; color: #839daa; font-size: 9px; pointer-events: none; }
