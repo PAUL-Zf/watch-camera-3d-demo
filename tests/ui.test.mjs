@@ -33,8 +33,9 @@ function setup(url = 'https://local-test.invalid/') {
   w.requestAnimationFrame = fn => { raf.push(fn); return raf.length; };
   w.URL.createObjectURL = () => 'blob:test'; w.URL.revokeObjectURL = () => {};
   w.HTMLAnchorElement.prototype.click = function () { w.__download = this.download; };
-  w.HTMLCanvasElement.prototype.getContext = () => ({ fillRect() {}, fillText() {}, putImageData() {}, createImageData: (width, height) => ({ data: new Uint8ClampedArray(width * height * 4) }) });
-  w.HTMLCanvasElement.prototype.toBlob = cb => cb(new w.Blob(['mock'], { type: 'image/png' }));
+  w.HTMLCanvasElement.prototype.getContext = () => ({ fillRect() {}, fillText() {}, putImageData() {}, drawImage() {}, createImageData: (width, height) => ({ data: new Uint8ClampedArray(width * height * 4) }) });
+  w.HTMLCanvasElement.prototype.toBlob = function(cb) { w.__exportSize=[this.width,this.height]; cb(new w.Blob(['mock'], { type: 'image/png' })); };
+  w.HTMLDialogElement.prototype.showModal = function(){this.open=true;}; w.HTMLDialogElement.prototype.close = function(){this.open=false;};
   w.HTMLElement.prototype.getBoundingClientRect = function () {
     let width = this.id === 'mainViewport' ? 600 : 180, height = this.id === 'mainViewport' ? 550 : 135;
     if (this.classList.contains('feed-frame') && w.__frameSize) ({ width, height } = w.__frameSize);
@@ -48,6 +49,45 @@ function setup(url = 'https://local-test.invalid/') {
 function click(env, selector) { env.doc.querySelector(selector).click(); }
 function slide(env, selector, value) { const input = env.doc.querySelector(selector); input.value = value; input.dispatchEvent(new env.w.Event('input', { bubbles: true })); }
 function change(env, selector, value) { const input = env.doc.querySelector(selector); input.value = value; input.dispatchEvent(new env.w.Event('change', { bubbles: true })); }
+test('per-slot module size and output grid persist independently without changing pose, HFOV or camera transform', () => {
+  const e=setup();try {
+    const before=e.w.watchVision.getState(),poses=e.w.watchVision.cameraPoses();
+    slide(e,'#camera-moduleWidth',12);slide(e,'#camera-moduleDepth',8);change(e,'#cameraResolution','eight');
+    const state=e.w.watchVision.getState();assert.deepEqual(state.pose,before.pose);assert.deepEqual(e.w.watchVision.cameraPoses(),poses);
+    assert.equal(state.cameras[0].fov,90);assert.equal(state.cameras[0].moduleWidth,12);assert.equal(state.cameras[0].moduleDepth,8);assert.equal(state.cameras[0].resolution,'eight');
+    assert.match(e.doc.querySelector('#details-0').textContent,/12×12×8 mm.*3264×2448/);
+    click(e,'#cameraTabs [data-camera="1"]');assert.equal(e.doc.querySelector('#camera-moduleWidth').value,'6');assert.equal(e.doc.querySelector('#cameraResolution').value,'vga');
+    click(e,'#cameraTabs [data-camera="0"]');assert.equal(e.doc.querySelector('#cameraResolution').value,'eight');
+    assert.equal(JSON.parse(e.w.localStorage.getItem('watch-camera-vision-v1')).cameras[0].resolution,'eight');
+    click(e,'#cameraDefault');assert.equal(e.doc.querySelector('#cameraResolution').value,'vga');assert.equal(e.doc.querySelector('#camera-moduleWidth').value,'6');
+    assert.deepEqual(e.errors,[]);
+  }finally{e.close();}
+});
+test('photo viewer captures every supported native grid, exports exact dimensions, toggles 100%, and releases snapshot on Escape', () => {
+  const e=setup();try {
+    for(const [key,width,height] of [['vga',640,480],['uxga',1600,1200],['five',2592,1944],['eight',3264,2448]]) {
+      change(e,'#cameraResolution',key);click(e,'#takePhoto');
+      const canvas=e.doc.querySelector('#photoCanvasHost canvas');assert.ok(canvas);assert.equal(canvas.width,width);assert.equal(canvas.height,height);
+      assert.equal(e.doc.querySelector('#photoDialog').open,true);assert.match(e.doc.querySelector('#photoMeta').textContent,new RegExp(`${width}×${height}`));
+      click(e,'#photoActual');assert.equal(e.doc.querySelector('#photoCanvasHost').classList.contains('actual-size'),true);assert.equal(e.doc.querySelector('#photoActual').getAttribute('aria-pressed'),'true');
+      click(e,'#photoFit');assert.equal(e.doc.querySelector('#photoCanvasHost').classList.contains('actual-size'),false);
+      click(e,'#savePhoto');assert.equal(e.w.__download,`watch-camera-A-${width}x${height}.png`);assert.deepEqual(e.w.__exportSize,[width,height]);
+      e.doc.dispatchEvent(new e.w.KeyboardEvent('keydown',{key:'Escape',bubbles:true}));assert.equal(e.doc.querySelector('#photoDialog').open,false);assert.equal(canvas.width,0);assert.equal(e.doc.activeElement.id,'takePhoto');
+    }
+    e.w.__viewports.length=0;e.frame(1000);assert.equal(e.w.__viewports.length,5);assert.ok(e.w.__viewports.slice(1).every(v=>v.width===180&&v.height===135));assert.deepEqual(e.errors,[]);
+  }finally{e.close();}
+});
+test('mixed-resolution comparison samples each lens at its own grid, scales sheet, and skips disabled cameras', () => {
+  const e=setup();try {
+    change(e,'#cameraResolution','uxga');click(e,'#cameraTabs [data-camera="1"]');change(e,'#cameraResolution','five');
+    const enabled=e.doc.querySelector('#cameraEnabled');enabled.checked=false;enabled.dispatchEvent(new e.w.Event('change',{bubbles:true}));assert.equal(e.doc.querySelector('#takePhoto').disabled,true);
+    click(e,'#cameraTabs [data-camera="2"]');change(e,'#cameraResolution','eight');
+    e.w.__viewports.length=0;click(e,'#saveImages');assert.equal(e.w.__download,'watch-camera-comparison.png');
+    assert.deepEqual(Array.from(e.w.__viewports,v=>[v.width,v.height]),[[1600,1200],[3264,2448],[640,480]]);
+    assert.ok(e.w.__viewports.every(v=>v.aspect===4/3));assert.deepEqual(e.w.__exportSize,[1280,1216]);
+    e.w.__viewports.length=0;e.frame(1000);assert.equal(e.w.__viewports.length,4);assert.deepEqual(e.errors,[]);
+  }finally{e.close();}
+});
 test('UI initializes four feeds and submits five view renders per frame', () => {
   const e = setup(); try {
     assert.equal(e.doc.querySelectorAll('.feed').length, 4); e.frame(1000);
@@ -58,7 +98,7 @@ test('feed images fit both wide and tall cells at 4:3 and all controls stay pres
   const e = setup(); try {
     assert.equal(e.doc.querySelectorAll('.control-section').length, 3);
     assert.equal(e.doc.querySelectorAll('[data-group="pose"]').length, 9);
-    assert.equal(e.doc.querySelectorAll('[data-group="camera"]').length, 4);
+    assert.equal(e.doc.querySelectorAll('[data-group="camera"]').length, 6);
     let time = 0;
     for (const [size, expected] of [[{ width: 600, height: 240 }, { width: 320, height: 240 }], [{ width: 160, height: 400 }, { width: 160, height: 120 }], [{ width: 300.5, height: 161.5 }, { width: 215, height: 161.25 }]]) {
       e.w.__frameSize = size; e.w.__viewports.length = 0; e.frame(time += 1000);

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { DEFAULT_CAMERA_SPEC } from './camera-specs.js';
 
 export const RAD = Math.PI / 180;
 export const SURFACES = {
@@ -22,10 +23,10 @@ export function presetPose(key, side = 'left', wearDistance = 53) {
   return pose;
 }
 export const DEFAULT_CAMERAS = [
-  { name: 'A', surface: 'front', attach: 'body', yaw: 0, pitch: 0, roll: 0, fov: 90, enabled: true },
-  { name: 'B', surface: 'rear', attach: 'body', yaw: 0, pitch: 0, roll: 0, fov: 90, enabled: true },
-  { name: 'C', surface: 'twelve', attach: 'body', yaw: 0, pitch: 0, roll: 0, fov: 90, enabled: true },
-  { name: 'D', surface: 'three', attach: 'body', yaw: 0, pitch: 0, roll: 0, fov: 90, enabled: true }
+  { name: 'A', surface: 'front', attach: 'body', yaw: 0, pitch: 0, roll: 0, fov: 90, enabled: true, ...DEFAULT_CAMERA_SPEC },
+  { name: 'B', surface: 'rear', attach: 'body', yaw: 0, pitch: 0, roll: 0, fov: 90, enabled: true, ...DEFAULT_CAMERA_SPEC },
+  { name: 'C', surface: 'twelve', attach: 'body', yaw: 0, pitch: 0, roll: 0, fov: 90, enabled: true, ...DEFAULT_CAMERA_SPEC },
+  { name: 'D', surface: 'three', attach: 'body', yaw: 0, pitch: 0, roll: 0, fov: 90, enabled: true, ...DEFAULT_CAMERA_SPEC }
 ];
 export function horizontalToVertical(hfov, aspect) {
   return THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan(hfov * RAD / 2) / aspect));

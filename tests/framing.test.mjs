@@ -85,7 +85,7 @@ test('closed lenses and skin-facing base rear fail explicitly without changing t
 test('default scene is food; v2 imports retain an explicit scene and gain a bounded wearing distance', () => {
   const initial=defaultState();assert.equal(initial.environment,'meal');assert.equal(initial.pose.wearDistance,53);assert.equal(initial.pose.flip,0);assert.equal(initial.pose.spin,0);
   const old={...initial,schemaVersion:2,environment:'calibration',pose:{...initial.pose}};delete old.pose.wearDistance;
-  const next=validateState(old);assert.equal(next.schemaVersion,3);assert.equal(next.environment,'calibration');assert.equal(next.pose.wearDistance,53);
+  const next=validateState(old);assert.equal(next.schemaVersion,4);assert.equal(next.environment,'calibration');assert.equal(next.pose.wearDistance,53);
   assert.throws(()=>validateState({...initial,pose:{...initial.pose,wearDistance:9}}));
   assert.throws(()=>validateState({...initial,pose:{...initial.pose,wearDistance:121}}));
 });

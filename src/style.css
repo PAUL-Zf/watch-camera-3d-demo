@@ -492,3 +492,47 @@ footer span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 @media (max-height: 959px) {
   .section-description { display: none; }
 }
+
+.camera-spec-fields { display: flex; flex-direction: column; gap: 2px; padding-bottom: 4px; margin-bottom: 4px; border-bottom: 1px solid #e7edf1; }
+.camera-spec-fields .slider-field { grid-template-columns: 110px minmax(0,1fr) 40px; }
+#photoDialog { width: min(1100px,94vw); max-width: 94vw; height: min(820px,90dvh); max-height: 90dvh; padding: 16px; border: 1px solid #b9cdd5; border-radius: 12px; color: #294252; background: #f4f8fa; }
+#photoDialog[open] { display: flex; flex-direction: column; gap: 10px; }
+#photoDialog::backdrop { background: #102937b8; }
+.photo-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.photo-heading h2 { font-size: 18px; line-height: 24px; }
+#closePhoto { font-size: 22px; padding: 0 8px; }
+#photoMeta { font-size: 13px; }
+.photo-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.photo-actions button { font-size: 13px; }
+.photo-actions [aria-pressed="true"] { background: #dcefe9; border-color: #459b8f; color: #176c60; }
+#savePhoto { margin-left: auto; }
+#photoCanvasHost { flex: 1; min-height: 0; overflow: auto; background: #162b38; border-radius: 7px; display: flex; align-items: center; justify-content: center; }
+#photoCanvasHost canvas { display: block; width: auto; height: auto; max-width: 100%; max-height: 100%; object-fit: contain; }
+#photoCanvasHost.actual-size { display: block; }
+#photoCanvasHost.actual-size canvas { max-width: none; max-height: none; }
+#photoNote { font-size: 12px; line-height: 18px; color: #647f8b; }
+/* Reserve room for the three new specification rows on shorter screens. */
+@media (max-height: 780px) {
+  .camera-spec-fields { gap: 0; padding-bottom: 2px; margin-bottom: 2px; }
+  .camera-mount-fields, .camera-spec-fields { gap: 1px; }
+  .select-row, .select-row select { height: 23px; }
+  .camera-shortcuts button, .camera-actions button { height: 21px; }
+}
+@media (max-height: 650px) {
+  .control-panel { padding: 3px; gap: 2px; }
+  .control-section { padding: 1px; }
+  .section-heading { height: 18px; margin-bottom: 1px; padding-bottom: 1px; }
+  .section-heading h2 { font-size: 13px; line-height: 17px; }
+  .step, .section-help summary { height: 17px; }
+  .section-help summary { width: 17px; }
+  .slider-field, .slider-field input { height: 16px; }
+  .slider-heading label, .slider-heading output { line-height: 15px; font-size: 12px; }
+  .parameter-icon { width: 15px; height: 15px; padding: 1px; }
+  .wrist-row, .segmented { height: 20px; }
+  .pose-list button, .camera-shortcuts button, .camera-actions button, .angle-shortcuts button { height: 18px; }
+  .camera-tabs { height: 22px; margin-bottom: 2px; }
+  .select-row, .select-row select { height: 20px; font-size: 12px; }
+  .camera-mount-fields { margin-bottom: 2px; }
+  .camera-shortcuts, .camera-actions, .angle-shortcuts { margin-top: 2px; }
+  .camera-shortcuts { gap: 2px; }
+}

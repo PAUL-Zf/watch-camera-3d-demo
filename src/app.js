@@ -7,6 +7,9 @@ import { fitSensorViewport } from './layout.js';
 import { sensorMeshes, sampleNearOcclusion } from './occlusion.js';
 import { fitMealToCamera } from './framing.js';
 import { fitMealOverview } from './overview.js';
+import { PHOTO_RESOLUTIONS, MODULE_LIMITS, pixelLabel } from './camera-specs.js';
+import { createCameraModule, updateCameraModule } from './camera-module.js';
+import { renderSensorPhoto } from './photos.js';
 
 const $ = selector => document.querySelector(selector);
 const COLORS = ['#46d7cf', '#ffbe6f', '#92a7ff', '#f292bf'];
@@ -24,12 +27,15 @@ const PARAMETER_ICONS = {
   yaw: '<rect x="9" y="8" width="6" height="8" rx="2"/><path d="M3 12h4m10 0h4M5 9l-3 3 3 3M19 9l3 3-3 3"/>',
   pitch: '<rect x="8" y="9" width="8" height="6" rx="2"/><path d="M12 3v4m0 10v4M9 5l3-3 3 3M9 19l3 3 3-3"/>',
   roll: '<rect x="8" y="8" width="8" height="8" rx="2" transform="rotate(-15 12 12)"/><path d="M4 12a8 8 0 1 0 4-7M3 4v5h5"/>',
+  moduleWidth: '<rect x="4" y="4" width="16" height="16" rx="3"/><path d="M5 12h14M8 9l-3 3 3 3M16 9l3 3-3 3"/>',
+  moduleDepth: '<path d="M4 6l8-3 8 3v12l-8 3-8-3zM4 6l8 3 8-3M12 9v12"/>',
   fov: '<circle cx="5" cy="12" r="2"/><path d="M7 11l13-7v16L7 13M14 7a8 8 0 0 1 0 10"/>'
 };
 const STORAGE_KEY = 'watch-camera-vision-v1';
 let state = defaultState(); let hasStorage = true;
 try { const saved = localStorage.getItem(STORAGE_KEY); if (saved) { const input = JSON.parse(saved); state = validateState(input); if (input.schemaVersion < 3) state.environment = 'meal'; } } catch { hasStorage = false; }
 let renderer, world, observer, orbit;
+let cameraModules = [], photoSnapshot;
 let cameras = [], frustums = [], markers = [], feedRects = [], mainRect;
 let animation = false, animationStart = 0, lastSwing = 0, lastFrame = 0, lastStatus = 0, frames = 0, lastFPS = 0;
 let toastTimer; let view = 'full'; let raycastMeshes = [];
@@ -42,9 +48,9 @@ function saveState() {
 function download(blob, filename) {
   const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = filename; document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 10000);
 }
-const PARAMETER_HELP = { wrist: '正值朝掌心弯曲，负值向手背伸展', deviation: '正值向拇指侧偏，负值向小指侧偏', wearDistance: '表体中心距腕关节；越小越靠近手腕，越大越靠近肘部' };
+const PARAMETER_HELP = { moduleWidth: '简化方形封装的边长；独立于照片像素', moduleDepth: '从光学入口向表壳内部延伸的封装厚度', wrist: '正值朝掌心弯曲，负值向手背伸展', deviation: '正值向拇指侧偏，负值向小指侧偏', wearDistance: '表体中心距腕关节；越小越靠近手腕，越大越靠近肘部' };
 function slider(key, label, min, max, value, group) {
-  const unit = key === 'wearDistance' ? 'mm' : '°';
+  const unit = key === 'wearDistance' || key.startsWith('module') ? 'mm' : '°';
   const description = PARAMETER_HELP[key] ? `${PARAMETER_HELP[key]} · ` : '';
   const progress = (value - min) / (max - min) * 100;
   const zero = min < 0 && max > 0 ? `<i class="slider-zero" style="left:${-min / (max - min) * 100}%" aria-hidden="true" title="0° 基准"></i>` : '';
@@ -65,7 +71,7 @@ function renderEditor() {
   $('#cameraEnabled').checked = c.enabled;
   $('#cameraEnabled').setAttribute('aria-label', `启用摄像头 ${c.name}`);
   $('.camera-section').style.setProperty('--selected-color', COLORS[state.selected]);
-  $('#cameraEditor').innerHTML = `<div class="camera-mount-fields"><label class="select-row">安装部件<select id="cameraAttach"><option value="body" ${c.attach === 'body' ? 'selected' : ''}>可翻转表体</option><option value="base" ${c.attach === 'base' ? 'selected' : ''}>腕上固定底座</option></select></label><label class="select-row">安装位置<select id="cameraSurface">${Object.entries(SURFACES).map(([key, surface]) => `<option value="${key}" ${key === c.surface ? 'selected' : ''}>${c.attach === 'base' && key === 'rear' ? '底座背面 · 朝皮肤' : surface.label}</option>`).join('')}</select></label></div><div class="sliders camera-sliders">${slider('yaw', '水平偏转', -90, 90, c.yaw, 'camera')}${slider('pitch', '上下倾斜', -90, 90, c.pitch, 'camera')}${slider('roll', '画面旋转 · 安装', -180, 180, c.roll, 'camera')}${slider('fov', '水平视场角 HFOV', 40, 130, c.fov, 'camera')}</div><div class="camera-shortcuts"><div class="angle-shortcuts" role="group" aria-label="画面旋转快捷角度"><span class="shortcut-caption">画面旋转</span><button data-roll="0">0°</button><button data-roll="90">90°</button><button data-roll="180">180°</button></div><div class="angle-shortcuts" role="group" aria-label="水平视场角快捷角度"><span class="shortcut-caption">水平视场角</span><button data-fov="60">窄 60°</button><button data-fov="90">中 90°</button><button data-fov="120">广 120°</button></div></div><div class="camera-actions"><button id="cameraDefault" class="camera-default" title="恢复此槽位的初始布局">恢复当前镜头</button><button id="toggleSummary" aria-controls="comparisonPanel" aria-expanded="${$('#comparisonPanel').classList.contains('summary-open')}">▦ 对比摘要</button></div>`;
+  $('#cameraEditor').innerHTML = `<div class="camera-mount-fields"><label class="select-row">安装部件<select id="cameraAttach"><option value="body" ${c.attach === 'body' ? 'selected' : ''}>可翻转表体</option><option value="base" ${c.attach === 'base' ? 'selected' : ''}>腕上固定底座</option></select></label><label class="select-row">安装位置<select id="cameraSurface">${Object.entries(SURFACES).map(([key, surface]) => `<option value="${key}" ${key === c.surface ? 'selected' : ''}>${c.attach === 'base' && key === 'rear' ? '底座背面 · 朝皮肤' : surface.label}</option>`).join('')}</select></label></div><div class="camera-spec-fields"><label class="select-row" title="仅改变输出像素数量；不等同于实机光学清晰度">照片分辨率<select id="cameraResolution">${Object.entries(PHOTO_RESOLUTIONS).map(([key,r]) => `<option value="${key}" ${c.resolution === key ? 'selected' : ''}>${r.label}</option>`).join('')}</select></label>${slider('moduleWidth', '模组宽度', ...MODULE_LIMITS.moduleWidth, c.moduleWidth, 'camera')}${slider('moduleDepth', '模组厚度', ...MODULE_LIMITS.moduleDepth, c.moduleDepth, 'camera')}</div><div class="sliders camera-sliders">${slider('yaw', '水平偏转', -90, 90, c.yaw, 'camera')}${slider('pitch', '上下倾斜', -90, 90, c.pitch, 'camera')}${slider('roll', '画面旋转 · 安装', -180, 180, c.roll, 'camera')}${slider('fov', '水平视场角 HFOV', 40, 130, c.fov, 'camera')}</div><div class="camera-shortcuts"><div class="angle-shortcuts" role="group" aria-label="画面旋转快捷角度"><span class="shortcut-caption">画面旋转</span><button data-roll="0">0°</button><button data-roll="90">90°</button><button data-roll="180">180°</button></div><div class="angle-shortcuts" role="group" aria-label="水平视场角快捷角度"><span class="shortcut-caption">水平视场角</span><button data-fov="60">窄 60°</button><button data-fov="90">中 90°</button><button data-fov="120">广 120°</button></div></div><div class="camera-actions"><button id="cameraDefault" class="camera-default" title="恢复此槽位的初始布局">恢复当前镜头</button><button id="toggleSummary" aria-controls="comparisonPanel" aria-expanded="${$('#comparisonPanel').classList.contains('summary-open')}">▦ 对比摘要</button></div>`;
 }
 function syncUI() {
   document.querySelectorAll('[data-side]').forEach(b => b.classList.toggle('active', b.dataset.side === state.side));
@@ -80,6 +86,9 @@ function syncUI() {
   document.querySelectorAll('input[data-group]').forEach(input => { input.value = (input.dataset.group === 'pose' ? state.pose : selected)[input.dataset.key]; $(`#${input.id}-value`).textContent = `${input.value}${input.dataset.unit || '°'}`; });
   const foodButton = document.querySelector('[data-preset="meal"]');
   foodButton.textContent = `食物取景 · ${selected.name}`; foodButton.title = `以主摄 ${selected.name}（${SURFACES[selected.surface].label}）为基准，按当前结构调整人体姿势并检查餐盘范围与遮挡；保留佩戴距离和旋转，表体后摄仅自动立起到90°`;
+  $('#cameraResolution').value = selected.resolution;
+  $('#takePhoto').textContent = `◎ 拍摄主摄 ${selected.name}`;
+  $('#takePhoto').disabled = !selected.enabled;
   $('#environment').value = state.environment;
   $('#poseReadout').textContent = PRESETS[state.preset]?.label || '自定义姿势';
   $('#flipReadout').textContent = `${state.pose.flip}°`;
@@ -92,9 +101,9 @@ function syncUI() {
     const slot = $(`#cameraTabs [data-camera="${i}"]`); slot.title = `${c.name} · ${label}`;
     slot.querySelector('.slot-surface').textContent = SLOT_NAMES[c.surface];
     slot.setAttribute('aria-pressed', String(i === state.selected));
-    $(`#fov-${i}`).textContent = `HFOV ${c.fov}°`;
-    $(`#details-${i}`).textContent = `${c.attach === 'body' ? '活动表体' : '固定底座'} · ${c.yaw}° / ${c.pitch}° / ${c.roll}°`;
-    $(`#details-${i}`).title = `偏转 ${c.yaw}° / 倾斜 ${c.pitch}° / 画面旋转 ${c.roll}°`;
+    $(`#fov-${i}`).textContent = `HFOV ${c.fov}° · ${pixelLabel(c).split(' · ')[0]}`;
+    $(`#details-${i}`).textContent = `${c.moduleWidth}×${c.moduleWidth}×${c.moduleDepth} mm · ${pixelLabel(c).split(' · ')[1]}`;
+    $(`#details-${i}`).title = `${c.attach === 'body' ? '活动表体' : '固定底座'} · 偏转 ${c.yaw}° / 倾斜 ${c.pitch}° / 画面旋转 ${c.roll}°；封装尺寸不推算像素数量`;
     const feed = $(`#viewport-${i}`).closest('.feed'); feed.classList.toggle('disabled', !c.enabled); feed.classList.toggle('selected', i === state.selected); feed.setAttribute('aria-pressed', String(i === state.selected));
     const summary = $(`#comparisonRows [data-camera="${i}"]`);
     summary.setAttribute('aria-pressed', String(i === state.selected)); summary.classList.toggle('is-disabled', !c.enabled);
@@ -138,7 +147,9 @@ function applyState(swing = 0) {
   world.humanMeshes.forEach(m => { m.visible = state.showBody; });
   state.cameras.forEach((c, i) => {
     applyCameraConfig(cameras[i], world.rig, c);
+    updateCameraModule(cameraModules[i],cameras[i],c);
     markers[i].position.copy(cameras[i].position);
+    markers[i].scale.setScalar(c.moduleWidth / 1000 * .12 / .0035);
     if (markers[i].parent !== cameras[i].parent) cameras[i].parent.add(markers[i]);
     markers[i].visible = c.enabled;
     updateFrustum(i);
@@ -238,31 +249,60 @@ function toggleAnimation() {
   else { lastSwing = 0; toast('围绕当前姿势摆臂，摄像头与手腕同步运动'); }
 }
 function stopAnimation() { if (animation) toggleAnimation(); }
-function capture() {
-  if (!renderer) return;
-  const width = 640, height = 480, header = 70;
-  const canvas = document.createElement('canvas'); canvas.width = width * 2; canvas.height = (height + header) * 2 + 68;
-  const ctx = canvas.getContext('2d'); ctx.fillStyle = '#142b38'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-  const previous = renderer.getRenderTarget(), target = new THREE.WebGLRenderTarget(width, height), pixels = new Uint8Array(width * height * 4);
-  target.texture.colorSpace = THREE.SRGBColorSpace;
-  const viewport = renderer.getViewport(new THREE.Vector4()), scissor = renderer.getScissor(new THREE.Vector4()), scissorTest = renderer.getScissorTest(), background = world.scene.background.clone();
+function takePhoto() {
+  const c = state.cameras[state.selected];
+  if (!renderer || !world) { toast('拍摄需要先启动 WebGL 场景'); return; }
+  if (!c.enabled) { toast('请先启用当前镜头'); return; }
   try {
-    renderer.setScissorTest(false);
-    state.cameras.forEach((c, i) => {
-      const x = (i % 2) * width, y = Math.floor(i / 2) * (height + header);
-      ctx.fillStyle = COLORS[i]; ctx.font = 'bold 22px sans-serif'; ctx.fillText(`${c.name} / ${SURFACES[c.surface].label}`, x + 18, y + 29);
-      ctx.fillStyle = '#b4cad3'; ctx.font = '14px sans-serif'; ctx.fillText(`${c.attach === 'body' ? '活动表体' : '固定底座'} · 偏转 ${c.yaw}° · 倾斜 ${c.pitch}° · 旋转 ${c.roll}°`, x + 18, y + 53);
-      if (!c.enabled) { ctx.fillStyle = '#809ba8'; ctx.font = '24px sans-serif'; ctx.fillText('镜头已关闭', x + 240, y + header + 240); return; }
-      renderer.setRenderTarget(target); renderer.setViewport(0, 0, width, height); world.scene.background.set('#9bb2bf'); renderer.render(world.scene, cameras[i]); renderer.readRenderTargetPixels(target, 0, 0, width, height, pixels);
-      const image = ctx.createImageData(width, height); for (let row = 0; row < height; row++) image.data.set(pixels.subarray((height - row - 1) * width * 4, (height - row) * width * 4), row * width * 4);
-      ctx.putImageData(image, x, y + header);
+    const canvas = renderSensorPhoto(renderer,world.scene,cameras[state.selected],c);
+    photoSnapshot = { canvas, config: { ...c } };
+    $('#photoCanvasHost').replaceChildren(canvas);
+    $('#photoTitle').textContent = `主摄 ${c.name} · ${SURFACES[c.surface].label}`;
+    $('#photoMeta').textContent = `${pixelLabel(c)} · HFOV ${c.fov}° · 模组 ${c.moduleWidth}×${c.moduleWidth}×${c.moduleDepth} mm`;
+    $('#photoDialog').showModal(); setPhotoScale(false); $('#photoActual').focus();
+  } catch (error) { toast(`无法拍摄：${error.message}`); }
+}
+function setPhotoScale(actual) {
+  if (!photoSnapshot) return;
+  $('#photoCanvasHost').classList.toggle('actual-size',actual);
+  $('#photoFit').setAttribute('aria-pressed',String(!actual)); $('#photoActual').setAttribute('aria-pressed',String(actual));
+  const host=$('#photoCanvasHost');
+  // 100% uses one image pixel per CSS pixel; initially centre the crop.
+  host.scrollLeft=actual ? Math.max(0,(photoSnapshot.canvas.width-host.clientWidth)/2) : 0;
+  host.scrollTop=actual ? Math.max(0,(photoSnapshot.canvas.height-host.clientHeight)/2) : 0;
+}
+function savePhoto() {
+  if (!photoSnapshot) return;
+  const { canvas, config }=photoSnapshot;
+  canvas.toBlob(blob => { if (blob) download(blob,`watch-camera-${config.name}-${canvas.width}x${canvas.height}.png`); else toast('照片导出失败'); },'image/png');
+}
+function closePhoto() {
+  $('#photoDialog').close(); $('#photoCanvasHost').replaceChildren();
+  // Release large 8MP canvases instead of retaining previous snapshots.
+  if (photoSnapshot) { photoSnapshot.canvas.width=0; photoSnapshot.canvas.height=0; photoSnapshot=undefined; }
+  $('#takePhoto').focus();
+}
+function capture() {
+  if (!renderer || !world) { toast('导出需要先启动 WebGL 场景'); return; }
+  // A compact comparison sheet; each photo is sampled at its configured grid
+  // before scaling to 640×480. Original-size downloads live in the photo viewer.
+  const width=640,height=480,header=94;
+  const canvas=document.createElement('canvas'); canvas.width=width*2; canvas.height=(height+header)*2+68;
+  const ctx=canvas.getContext('2d'); ctx.fillStyle='#142b38'; ctx.fillRect(0,0,canvas.width,canvas.height);
+  try {
+    state.cameras.forEach((c,i) => {
+      const x=(i%2)*width,y=Math.floor(i/2)*(height+header);
+      ctx.fillStyle=COLORS[i]; ctx.font='bold 22px sans-serif'; ctx.fillText(`${c.name} / ${SURFACES[c.surface].label}`,x+18,y+29);
+      ctx.fillStyle='#b4cad3'; ctx.font='14px sans-serif'; ctx.fillText(`${pixelLabel(c)} · HFOV ${c.fov}° · 模组 ${c.moduleWidth}×${c.moduleWidth}×${c.moduleDepth} mm`,x+18,y+53);
+      ctx.fillText(`${c.attach === 'body' ? '活动表体' : '固定底座'} · 偏转 ${c.yaw}° · 倾斜 ${c.pitch}° · 旋转 ${c.roll}°`,x+18,y+76);
+      if (!c.enabled) { ctx.fillStyle='#809ba8'; ctx.font='24px sans-serif'; ctx.fillText('镜头已关闭',x+240,y+header+240); return; }
+      const photo=renderSensorPhoto(renderer,world.scene,cameras[i],c);
+      ctx.drawImage(photo,x,y+header,width,height); photo.width=0; photo.height=0;
     });
-    ctx.fillStyle = '#bbcfd6'; ctx.font = '18px sans-serif'; ctx.fillText(`${state.side === 'left' ? '左腕' : '右腕'} | 佩戴距离 ${state.pose.wearDistance} mm | 内收 ${state.pose.inward}° | 表体立起 ${state.pose.flip}° | ${PRESETS[state.preset]?.label || '自定义姿势'} | 水平视场角 ${state.cameras.map(c => c.fov + '°').join(' / ')}`, 20, canvas.height - 38);
-    ctx.font = '14px sans-serif'; ctx.fillStyle = '#8ca6b2'; ctx.fillText('WATCH / VISION · 概念视野模拟，非实机成像效果', 20, canvas.height - 14);
-    canvas.toBlob(blob => { if (blob) { download(blob, 'watch-camera-comparison.png'); toast('四路对比图已生成'); } }, 'image/png');
-  } finally {
-    renderer.setRenderTarget(previous); renderer.setViewport(viewport); renderer.setScissor(scissor); renderer.setScissorTest(scissorTest); world.scene.background.copy(background); target.dispose();
-  }
+    ctx.fillStyle='#bbcfd6'; ctx.font='18px sans-serif'; ctx.fillText(`${state.side === 'left' ? '左腕' : '右腕'} | 佩戴距离 ${state.pose.wearDistance} mm | 内收 ${state.pose.inward}° | 表体立起 ${state.pose.flip}° | ${PRESETS[state.preset]?.label || '自定义姿势'}`,20,canvas.height-38);
+    ctx.font='14px sans-serif'; ctx.fillStyle='#8ca6b2'; ctx.fillText('WATCH / VISION · 各照片缩放至640×480；原尺寸照片请使用“拍摄主摄”保存',20,canvas.height-14);
+    canvas.toBlob(blob => { if (blob) { download(blob,'watch-camera-comparison.png'); toast('四路对比图已生成（缩放预览）'); } else toast('对比图导出失败'); },'image/png');
+  } catch (error) { toast(`无法导出：${error.message}`); }
 }
 function bindEvents() {
   document.addEventListener('click', event => {
@@ -290,10 +330,14 @@ function bindEvents() {
     else if (button.id === 'exportConfig') { download(new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' }), 'watch-camera-config.json'); return; }
     else if (button.id === 'importConfig') { $('#configFile').click(); return; }
     else if (button.id === 'saveImages') { capture(); return; }
+    else if (button.id === 'takePhoto') { takePhoto(); return; }
+    else if (button.id === 'photoFit' || button.id === 'photoActual') { setPhotoScale(button.id === 'photoActual'); return; }
+    else if (button.id === 'savePhoto') { savePhoto(); return; }
+    else if (button.id === 'closePhoto') { closePhoto(); return; }
     else return;
     syncUI(); applyState(); saveState();
   });
-  document.addEventListener('keydown', event => { if (event.key === 'Escape' && $('#comparisonPanel').classList.contains('summary-open')) $('#closeSummary').click(); });
+  document.addEventListener('keydown', event => { if (event.key === 'Escape' && $('#photoDialog').open) { event.preventDefault(); closePhoto(); return; } if (event.key === 'Escape' && $('#comparisonPanel').classList.contains('summary-open')) $('#closeSummary').click(); });
   $('#feeds').addEventListener('keydown', event => { const card = event.target.closest('.feed'); if (card && ['Enter', ' '].includes(event.key)) { event.preventDefault(); selectCamera(+card.dataset.camera); } });
   $('#mainViewport').addEventListener('keydown', event => {
     if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return;
@@ -311,6 +355,7 @@ function bindEvents() {
   document.addEventListener('change', event => {
     const input = event.target, c = state.cameras[state.selected];
     if (input.id === 'cameraSurface') { c.surface = input.value; c.yaw = 0; c.pitch = 0; c.roll = 0; renderEditor(); }
+    else if (input.id === 'cameraResolution') c.resolution = input.value;
     else if (input.id === 'cameraAttach') { c.attach = input.value; renderEditor(); }
     else if (input.id === 'environment') { state.environment = input.value; frameCamera(state.environment === 'meal' ? 'meal' : 'full'); }
     else if (input.id === 'cameraEnabled') c.enabled = input.checked;
@@ -326,6 +371,7 @@ function bindEvents() {
     catch (error) { toast(`无法导入：${error.message}`); }
     finally { event.target.value = ''; }
   });
+  $('#photoDialog').addEventListener('cancel', event => { event.preventDefault(); closePhoto(); });
   window.addEventListener('resize', resize); window.addEventListener('scroll', measure, { passive: true });
 }
 function initialize() {
@@ -339,6 +385,7 @@ function initialize() {
     orbit = new OrbitControls(observer, $('#mainViewport')); orbit.enableDamping = true; orbit.dampingFactor = .09; orbit.maxDistance = 8; orbit.maxPolarAngle = Math.PI * .96;
     cameras = state.cameras.map((_, i) => {
       const camera = new THREE.PerspectiveCamera(); world.rig.body.add(camera);
+      cameraModules.push(createCameraModule('ABCD'[i]));
       const group = new THREE.Group(); group.name = `frustum-${i}`;
       const edges = new THREE.LineSegments(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: COLORS[i], transparent: true, opacity: .65 })); edges.layers.set(1); group.add(edges);
       const fill = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({ color: COLORS[i], transparent: true, opacity: .045, side: THREE.DoubleSide, depthWrite: false })); fill.layers.set(1); group.add(fill); camera.add(group); frustums.push(group);
