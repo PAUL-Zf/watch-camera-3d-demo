@@ -6,6 +6,7 @@ import { createWorld } from './scene.js';
 import { fitSensorViewport } from './layout.js';
 import { sensorMeshes, sampleNearOcclusion } from './occlusion.js';
 import { fitMealToCamera } from './framing.js';
+import { fitMealOverview } from './overview.js';
 
 const $ = selector => document.querySelector(selector);
 const COLORS = ['#46d7cf', '#ffbe6f', '#92a7ff', '#f292bf'];
@@ -169,6 +170,7 @@ function measure() {
 function resize() {
   if (!renderer) return;
   renderer.setSize(window.innerWidth, window.innerHeight); measure();
+  if (view === 'meal') frameCamera('meal');
 }
 function frameCamera(which) {
   if (!orbit) return;
@@ -176,7 +178,9 @@ function frameCamera(which) {
   if (which === 'wrist') {
     const target = world.rig.body.getWorldPosition(new THREE.Vector3()); orbit.target.copy(target); observer.position.copy(target).add(new THREE.Vector3(.16, .14, .22)); orbit.minDistance = .08;
   } else if (which === 'meal') {
-    orbit.target.copy(world.meal.focus); observer.position.set(1.1, 1.8, 1.65); orbit.minDistance = .15;
+    measure();
+    const fitted = fitMealOverview(observer, world, mainRect.width / Math.max(1,mainRect.height));
+    orbit.target.copy(fitted.target); orbit.minDistance = .3; orbit.maxDistance = Math.max(8,fitted.distance * 1.5);
   } else if (which === 'face') {
     orbit.target.set(0, 1.47, .05); observer.position.set(.7, 1.75, 1.4); orbit.minDistance = .3;
   } else {
@@ -281,7 +285,7 @@ function bindEvents() {
       $('#comparisonPanel').classList.toggle('summary-open', open); $('#toggleSummary').setAttribute('aria-expanded', String(open));
       if (open) $('#closeSummary').focus(); else $('#toggleSummary').focus(); return;
     }
-    else if (button.id === 'reset') { stopAnimation(); state = defaultState(); renderUI(); frameCamera('meal'); toast('已恢复初始姿势与四路布局'); }
+    else if (button.id === 'reset') { stopAnimation(); state = defaultState(); renderUI(); applyState(); frameCamera('meal'); toast('已恢复初始姿势与四路布局'); }
     else if (button.id === 'animate') { toggleAnimation(); return; }
     else if (button.id === 'exportConfig') { download(new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' }), 'watch-camera-config.json'); return; }
     else if (button.id === 'importConfig') { $('#configFile').click(); return; }
