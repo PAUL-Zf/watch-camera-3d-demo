@@ -497,7 +497,7 @@ footer span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .camera-spec-fields { display: flex; flex-direction: column; gap: 2px; padding-bottom: 4px; margin-bottom: 4px; border-bottom: 1px solid #e7edf1; }
 .camera-spec-fields .slider-field { grid-template-columns: 110px minmax(0,1fr) 40px; }
 #photoDialog { width: min(1100px,94vw); max-width: 94vw; height: min(820px,90dvh); max-height: 90dvh; padding: 16px; border: 1px solid #b9cdd5; border-radius: 12px; color: #294252; background: #f4f8fa; }
-#photoDialog[open] { display: flex; flex-direction: column; gap: 10px; }
+#photoDialog[open] { display: grid; grid-template-rows: auto auto auto minmax(0,1fr) auto; gap: 10px; overflow: hidden; }
 #photoDialog::backdrop { background: #102937b8; }
 .photo-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .photo-heading h2 { font-size: 18px; line-height: 24px; }
@@ -507,10 +507,13 @@ footer span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .photo-actions button { font-size: 13px; }
 .photo-actions [aria-pressed="true"] { background: #dcefe9; border-color: #459b8f; color: #176c60; }
 #savePhoto { margin-left: auto; }
-#photoCanvasHost { flex: 1; min-height: 0; overflow: auto; background: #162b38; border-radius: 7px; display: flex; align-items: center; justify-content: center; }
-#photoCanvasHost canvas { display: block; width: auto; height: auto; max-width: 100%; max-height: 100%; object-fit: contain; }
-#photoCanvasHost.actual-size { display: block; }
-#photoCanvasHost.actual-size canvas { max-width: none; max-height: none; }
+#photoCanvasHost { min-width: 0; min-height: 0; overflow: hidden; background: #162b38; border-radius: 7px; position: relative; }
+#photoCanvasStage { display: grid; place-items: center; }
+#photoCanvasHost canvas { display: block; max-width: none; max-height: none; user-select: none; }
+#photoCanvasHost.actual-size { overflow: auto; cursor: grab; touch-action: none; overscroll-behavior: contain; scrollbar-gutter: stable; }
+#photoCanvasHost.actual-size #photoCanvasStage { place-items: start; }
+#photoCanvasHost.panning { cursor: grabbing; }
+.view-buttons button[hidden], .pose-list button[hidden] { display: none; }
 #photoNote { font-size: 12px; line-height: 18px; color: #647f8b; }
 /* Reserve room for the three new specification rows on shorter screens. */
 @media (max-height: 780px) {

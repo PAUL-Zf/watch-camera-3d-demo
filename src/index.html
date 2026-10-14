@@ -13,7 +13,7 @@
   <div class="app">
     <header class="topbar">
       <div class="brand"><span class="brand-mark">W<span>•</span></span><div><strong>WATCH <span>/</span> VISION</strong><small>手表摄像头 · 视野实验室</small></div></div>
-      <div class="top-meta"><span class="offline"><i></i> 本地离线</span><span class="version">CONCEPT DEMO · V0.3.1</span></div>
+      <div class="top-meta"><span class="offline"><i></i> 本地离线</span><span class="version">CONCEPT DEMO · V0.3.2</span></div>
       <div class="top-actions"><button id="exportConfig">导出配置</button><button id="importConfig">导入配置</button><button id="reset" class="dark-button">重置实验</button><input id="configFile" type="file" accept="application/json,.json" hidden></div>
     </header>
     <main class="workspace">
@@ -78,8 +78,8 @@
     <div class="photo-heading"><h2 id="photoTitle">主摄照片</h2><button id="closePhoto" aria-label="关闭照片">×</button></div>
     <p id="photoMeta"></p>
     <div class="photo-actions"><button id="photoFit" aria-pressed="true">适应窗口</button><button id="photoActual" aria-pressed="false">100% 原尺寸</button><button id="savePhoto">↓ 保存原尺寸 PNG</button></div>
-    <div id="photoCanvasHost" tabindex="0" aria-label="照片查看区域，原尺寸时可滚动查看局部"></div>
-    <p id="photoNote">当前姿势的静态照片。100% 时可滚动查看局部；一个图像像素对应一个界面像素。仅模拟像素采样，不代表实机清晰度或识别效果。</p>
+    <div id="photoCanvasHost" tabindex="0" aria-label="照片查看区域，原尺寸时可滚动或拖动查看局部"><div id="photoCanvasStage"></div></div>
+    <p id="photoNote">100% 时可滚轮上下滚动、Shift＋滚轮横向滚动，也可按住照片拖动查看局部。一个图像像素对应一个界面像素；照片小于窗口时无需滚动。仅模拟像素采样，不代表实机清晰度或识别效果。</p>
   </dialog>
   <div id="toast" role="status" aria-live="polite"></div>
   <script>/* INLINE_SCRIPT */</script>

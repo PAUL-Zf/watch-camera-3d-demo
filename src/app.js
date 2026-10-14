@@ -6,10 +6,11 @@ import { createWorld } from './scene.js';
 import { fitSensorViewport } from './layout.js';
 import { sensorMeshes, sampleNearOcclusion } from './occlusion.js';
 import { fitMealToCamera } from './framing.js';
-import { fitMealOverview } from './overview.js';
+import { fitMealOverview, fitTableOverview } from './overview.js';
 import { PHOTO_RESOLUTIONS, MODULE_LIMITS, pixelLabel } from './camera-specs.js';
 import { createCameraModule, updateCameraModule } from './camera-module.js';
 import { renderSensorPhoto } from './photos.js';
+import { layoutPhoto, bindPhotoPan } from './photo-viewer.js';
 
 const $ = selector => document.querySelector(selector);
 const COLORS = ['#46d7cf', '#ffbe6f', '#92a7ff', '#f292bf'];
@@ -85,6 +86,8 @@ function syncUI() {
   });
   document.querySelectorAll('input[data-group]').forEach(input => { input.value = (input.dataset.group === 'pose' ? state.pose : selected)[input.dataset.key]; $(`#${input.id}-value`).textContent = `${input.value}${input.dataset.unit || '°'}`; });
   const foodButton = document.querySelector('[data-preset="meal"]');
+  foodButton.hidden = state.environment !== 'meal';
+  document.querySelector('[data-view="meal"]').hidden = state.environment !== 'meal';
   foodButton.textContent = `食物取景 · ${selected.name}`; foodButton.title = `以主摄 ${selected.name}（${SURFACES[selected.surface].label}）为基准，按当前结构调整人体姿势并检查餐盘范围与遮挡；保留佩戴距离和旋转，表体后摄仅自动立起到90°`;
   $('#cameraResolution').value = selected.resolution;
   $('#takePhoto').textContent = `◎ 拍摄主摄 ${selected.name}`;
@@ -189,11 +192,13 @@ function fitControlPanel() {
 }
 function resize() {
   panelHeight=-1; measure();
+  if (photoSnapshot && $('#photoDialog').open) layoutPhoto($('#photoCanvasHost'),$('#photoCanvasStage'),photoSnapshot.canvas,$('#photoCanvasHost').classList.contains('actual-size'));
   if (!renderer) return;
   renderer.setSize(window.innerWidth, window.innerHeight);
-  if (view === 'meal') frameCamera('meal');
+  if (['meal','overview'].includes(view)) frameCamera(view);
 }
 function frameCamera(which) {
+  if (which==='meal' && state.environment!=='meal') which='full';
   if (!orbit || !world || !observer) { toast('3D 场景尚未就绪，无法定位视角'); return; }
   // Flush pending drag/damping before applying the exact preset transform.
   const damping=orbit.enableDamping; orbit.enableDamping=false; orbit.update();
@@ -201,9 +206,9 @@ function frameCamera(which) {
   orbit.maxDistance=8;
   if (which === 'wrist') {
     const target = world.rig.body.getWorldPosition(new THREE.Vector3()); orbit.target.copy(target); observer.position.copy(target).add(new THREE.Vector3(.16, .14, .22)); orbit.minDistance = .08;
-  } else if (which === 'meal') {
+  } else if (which === 'meal' || which === 'overview') {
     measure();
-    const fitted = fitMealOverview(observer, world, mainRect.width / Math.max(1,mainRect.height));
+    const fitted = (which==='meal' ? fitTableOverview : fitMealOverview)(observer, world, mainRect.width / Math.max(1,mainRect.height));
     orbit.target.copy(fitted.target); orbit.minDistance = .3; orbit.maxDistance = Math.max(8,fitted.distance * 1.5);
   } else if (which === 'face') {
     orbit.target.set(0, 1.47, .05); observer.position.set(.7, 1.75, 1.4); orbit.minDistance = .3;
@@ -211,7 +216,7 @@ function frameCamera(which) {
     orbit.target.set(0, 1.1, .45); observer.position.set(2.6, 2.2, 3.7); orbit.minDistance = .3;
   }
   orbit.update(); orbit.enableDamping=damping;
-  document.querySelectorAll('[data-view]').forEach(button => button.setAttribute('aria-pressed',String(button.dataset.view===which)));
+  document.querySelectorAll('[data-view]').forEach(button => button.setAttribute('aria-pressed',String(button.dataset.view===which || which==='overview'&&button.dataset.view==='full')));
 }
 const raycaster = new THREE.Raycaster();
 function visiblePoint(camera, point, tolerance = .008) {
@@ -270,7 +275,7 @@ function takePhoto() {
   try {
     const canvas = renderSensorPhoto(renderer,world.scene,cameras[state.selected],c);
     photoSnapshot = { canvas, config: { ...c } };
-    $('#photoCanvasHost').replaceChildren(canvas);
+    $('#photoCanvasStage').replaceChildren(canvas);
     $('#photoTitle').textContent = `主摄 ${c.name} · ${SURFACES[c.surface].label}`;
     $('#photoMeta').textContent = `${pixelLabel(c)} · HFOV ${c.fov}° · 模组 ${c.moduleWidth}×${c.moduleWidth}×${c.moduleDepth} mm`;
     $('#photoDialog').showModal(); setPhotoScale(false); $('#photoActual').focus();
@@ -278,12 +283,13 @@ function takePhoto() {
 }
 function setPhotoScale(actual) {
   if (!photoSnapshot) return;
-  $('#photoCanvasHost').classList.toggle('actual-size',actual);
-  $('#photoFit').setAttribute('aria-pressed',String(!actual)); $('#photoActual').setAttribute('aria-pressed',String(actual));
   const host=$('#photoCanvasHost');
+  layoutPhoto(host,$('#photoCanvasStage'),photoSnapshot.canvas,actual);
+  $('#photoFit').setAttribute('aria-pressed',String(!actual)); $('#photoActual').setAttribute('aria-pressed',String(actual));
   // 100% uses one image pixel per CSS pixel; initially centre the crop.
   host.scrollLeft=actual ? Math.max(0,(photoSnapshot.canvas.width-host.clientWidth)/2) : 0;
   host.scrollTop=actual ? Math.max(0,(photoSnapshot.canvas.height-host.clientHeight)/2) : 0;
+  if (actual) host.focus();
 }
 function savePhoto() {
   if (!photoSnapshot) return;
@@ -291,7 +297,7 @@ function savePhoto() {
   canvas.toBlob(blob => { if (blob) download(blob,`watch-camera-${config.name}-${canvas.width}x${canvas.height}.png`); else toast('照片导出失败'); },'image/png');
 }
 function closePhoto() {
-  $('#photoDialog').close(); $('#photoCanvasHost').replaceChildren();
+  $('#photoDialog').close(); $('#photoCanvasStage').replaceChildren(); $('#photoCanvasHost').classList.remove('panning');
   // Release large 8MP canvases instead of retaining previous snapshots.
   if (photoSnapshot) { photoSnapshot.canvas.width=0; photoSnapshot.canvas.height=0; photoSnapshot=undefined; }
   $('#takePhoto').focus();
@@ -343,7 +349,7 @@ function bindEvents() {
       $('#comparisonPanel').classList.toggle('summary-open', open); $('#toggleSummary').setAttribute('aria-expanded', String(open));
       if (open) $('#closeSummary').focus(); else $('#toggleSummary').focus(); return;
     }
-    else if (button.id === 'reset') { stopAnimation(); state = defaultState(); renderUI(); applyState(); frameCamera('meal'); toast('已恢复初始姿势与四路布局'); }
+    else if (button.id === 'reset') { stopAnimation(); state = defaultState(); renderUI(); applyState(); frameCamera('overview'); toast('已恢复初始姿势与四路布局'); }
     else if (button.id === 'animate') { toggleAnimation(); return; }
     else if (button.id === 'exportConfig') { download(new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' }), 'watch-camera-config.json'); return; }
     else if (button.id === 'importConfig') { $('#configFile').click(); return; }
@@ -385,11 +391,12 @@ function bindEvents() {
   });
   $('#configFile').addEventListener('change', async event => {
     const file = event.target.files[0]; if (!file) return;
-    try { if (file.size > 100000) throw new Error('配置文件过大'); const imported = validateState(JSON.parse(await file.text())); stopAnimation(); state = imported; renderUI(); applyState(); saveState(); toast('配置已导入'); }
+    try { if (file.size > 100000) throw new Error('配置文件过大'); const imported = validateState(JSON.parse(await file.text())); stopAnimation(); state = imported; renderUI(); applyState(); frameCamera(state.environment==='meal'?'overview':'full'); saveState(); toast('配置已导入'); }
     catch (error) { toast(`无法导入：${error.message}`); }
     finally { event.target.value = ''; }
   });
   $('#photoDialog').addEventListener('cancel', event => { event.preventDefault(); closePhoto(); });
+  bindPhotoPan($('#photoCanvasHost'));
   window.addEventListener('resize', resize); window.addEventListener('scroll', measure, { passive: true });
 }
 function initialize() {
@@ -410,7 +417,7 @@ function initialize() {
       const marker = new THREE.Mesh(new THREE.SphereGeometry(.0035, 12, 8), new THREE.MeshBasicMaterial({ color: COLORS[i] })); marker.layers.set(1); world.rig.body.add(marker); markers.push(marker);
       return camera;
     });
-    applyState(); frameCamera(state.environment === 'meal' ? 'meal' : 'full'); resize(); $('#loading').style.display = 'none';
+    applyState(); frameCamera(state.environment === 'meal' ? 'overview' : 'full'); resize(); $('#loading').style.display = 'none';
     renderer.domElement.addEventListener('webglcontextlost', event => { event.preventDefault(); $('#loading').style.display = 'flex'; $('#loading').textContent = '3D 图形上下文已丢失，请重新打开页面。'; });
     requestAnimationFrame(renderFrame);
     // A read-only diagnostic API for development; geometry is the same as the visible simulator.

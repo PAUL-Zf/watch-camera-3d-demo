@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { createWorld } from '../src/scene.js';
-import { fitMealOverview } from '../src/overview.js';
+import { fitMealOverview, fitTableOverview } from '../src/overview.js';
 import { updatePose, presetPose } from '../src/kinematics.js';
 globalThis.document = { createElement: () => ({ getContext: () => ({ fillRect() {}, fillText() {} }) }) };
 
@@ -20,5 +20,19 @@ test('meal overview includes actual whole wearer and table meshes across desktop
         assert.ok(Math.abs(p.x)<=.841&&p.y>=-.481&&p.y<=.801&&p.z>=-1&&p.z<=1, `${side} ${preset} ${aspect}: mesh vertex cropped`);
       }
     }
+  }
+});
+test('table shortcut points down and includes all table meshes across portrait and landscape viewport ratios',()=>{
+  const world=createWorld(),camera=new THREE.PerspectiveCamera(43,1,.01,20);
+  for(const aspect of [.45,.7,1,1.6,2]) {
+    fitTableOverview(camera,world,aspect);
+    assert.ok(camera.getWorldDirection(new THREE.Vector3()).dot(new THREE.Vector3(0,-1,0))>.999999);
+    world.meal.group.traverse(mesh=>{
+      if(!mesh.isMesh)return;const vertices=mesh.geometry.attributes.position;
+      for(let i=0;i<vertices.count;i++) {
+        const p=new THREE.Vector3().fromBufferAttribute(vertices,i).applyMatrix4(mesh.matrixWorld).project(camera);
+        assert.ok(Math.abs(p.x)<=.841&&p.y>=-.481&&p.y<=.801&&p.z>=-1&&p.z<=1,`${aspect}: table vertex outside visible area`);
+      }
+    });
   }
 });

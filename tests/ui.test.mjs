@@ -39,6 +39,7 @@ function setup(url = 'https://local-test.invalid/') {
   w.HTMLCanvasElement.prototype.getContext = () => ({ fillRect() {}, fillText() {}, putImageData() {}, drawImage() {}, createImageData: (width, height) => ({ data: new Uint8ClampedArray(width * height * 4) }) });
   w.HTMLCanvasElement.prototype.toBlob = function(cb) { w.__exportSize=[this.width,this.height]; cb(new w.Blob(['mock'], { type: 'image/png' })); };
   w.HTMLDialogElement.prototype.showModal = function(){this.open=true;}; w.HTMLDialogElement.prototype.close = function(){this.open=false;};
+  Object.defineProperties(w.document.querySelector('#photoCanvasHost'),{clientWidth:{value:180},clientHeight:{value:135}});
   w.HTMLElement.prototype.getBoundingClientRect = function () {
     let width = this.id === 'mainViewport' ? 600 : 180, height = this.id === 'mainViewport' ? 550 : 135;
     if (this.classList.contains('feed-frame') && w.__frameSize) ({ width, height } = w.__frameSize);
@@ -107,11 +108,23 @@ test('photo viewer captures every supported native grid, exports exact dimension
       const canvas=e.doc.querySelector('#photoCanvasHost canvas');assert.ok(canvas);assert.equal(canvas.width,width);assert.equal(canvas.height,height);
       assert.equal(e.doc.querySelector('#photoDialog').open,true);assert.match(e.doc.querySelector('#photoMeta').textContent,new RegExp(`${width}×${height}`));
       click(e,'#photoActual');assert.equal(e.doc.querySelector('#photoCanvasHost').classList.contains('actual-size'),true);assert.equal(e.doc.querySelector('#photoActual').getAttribute('aria-pressed'),'true');
+      assert.equal(canvas.style.width,`${width}px`);assert.equal(canvas.style.height,`${height}px`);assert.equal(e.doc.querySelector('#photoCanvasStage').style.width,`${width}px`);
       click(e,'#photoFit');assert.equal(e.doc.querySelector('#photoCanvasHost').classList.contains('actual-size'),false);
       click(e,'#savePhoto');assert.equal(e.w.__download,`watch-camera-A-${width}x${height}.png`);assert.deepEqual(e.w.__exportSize,[width,height]);
       e.doc.dispatchEvent(new e.w.KeyboardEvent('keydown',{key:'Escape',bubbles:true}));assert.equal(e.doc.querySelector('#photoDialog').open,false);assert.equal(canvas.width,0);assert.equal(e.doc.activeElement.id,'takePhoto');
     }
     e.w.__viewports.length=0;e.frame(1000);assert.equal(e.w.__viewports.length,5);assert.ok(e.w.__viewports.slice(1).every(v=>v.width===180&&v.height===135));assert.deepEqual(e.errors,[]);
+  }finally{e.close();}
+});
+test('reference scene removes meal-only controls and table view switches to a complete downward table overview',()=>{
+  const e=setup();try {
+    const cameras=e.w.watchVision.cameraPoses(),pose=e.w.watchVision.getState().pose;
+    click(e,'[data-view="meal"]');e.frame(1000);assert.ok(e.w.__observerViews.at(-1).direction[1]<-.999999);
+    change(e,'#environment','calibration');assert.equal(e.doc.querySelector('[data-view="meal"]').hidden,true);assert.equal(e.doc.querySelector('[data-preset="meal"]').hidden,true);
+    assert.equal(e.doc.querySelector('[data-view="full"]').getAttribute('aria-pressed'),'true');
+    change(e,'#environment','meal');e.frame(2000);assert.equal(e.doc.querySelector('[data-view="meal"]').hidden,false);assert.equal(e.doc.querySelector('[data-preset="meal"]').hidden,false);assert.ok(e.w.__observerViews.at(-1).direction[1]<-.999999);
+    assert.deepEqual(e.w.watchVision.cameraPoses(),cameras);assert.deepEqual(e.w.watchVision.getState().pose,pose);
+    click(e,'#reset');e.frame(3000);assert.ok(e.w.__observerViews.at(-1).direction[1]>-.9,'initial view should still include the wearer');assert.deepEqual(e.errors,[]);
   }finally{e.close();}
 });
 test('mixed-resolution comparison samples each lens at its own grid, scales sheet, and skips disabled cameras', () => {

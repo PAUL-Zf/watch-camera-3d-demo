@@ -33,3 +33,21 @@ export function fitMealOverview(camera, world, aspect) {
   }
   return { target, distance, bounds };
 }
+
+// Table-only, almost vertical view. Keep the observer's Y-up convention so
+// OrbitControls continues to use its original rotation axes after switching.
+export function fitTableOverview(camera,world,aspect) {
+  world.scene.updateMatrixWorld(true);
+  const bounds=new THREE.Box3().setFromObject(world.meal.group),centre=bounds.getCenter(new THREE.Vector3()),size=bounds.getSize(new THREE.Vector3());
+  const target=centre.clone();target.z+=size.z*.20;
+  camera.aspect=Math.max(.1,aspect);camera.updateProjectionMatrix();
+  const corners=[];
+  for(const x of [bounds.min.x,bounds.max.x])for(const y of [bounds.min.y,bounds.max.y])for(const z of [bounds.min.z,bounds.max.z])corners.push(new THREE.Vector3(x,y,z));
+  let distance=1.2;
+  for(let i=0;i<80;i++) {
+    camera.position.copy(target).add(new THREE.Vector3(0,distance,distance*.00001));camera.lookAt(target);camera.updateMatrixWorld(true);
+    if(corners.every(point=>{const p=point.clone().project(camera);return Math.abs(p.x)<=.84&&p.y>=-.48&&p.y<=.80&&p.z>=-1&&p.z<=1;}))break;
+    distance*=1.06;
+  }
+  return {target,distance,bounds};
+}
